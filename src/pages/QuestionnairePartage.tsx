@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Save, CheckCircle, AlertTriangle, Zap, User, ArrowLeft, Share2, Copy } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { CheckCircle, AlertTriangle, Heart, ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -9,17 +9,30 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { useSFEData, useAuth } from '@/hooks/useData';
-import { generateId, detectAlertePatiente, ROUTE_PATHS, EXPERIENCES, FACTEURS_RISQUE, SIGNES_CLINIQUES, FREQ_CONTROLE_TA, ELEMENTS_HYPERTENDUE, CONDUITE_HTA, ANTIHYPERTENSIFS, CONSEILS_HYPERTENSION, PROPORTIONS_GUERISON, FEMMES_RISQUE, CENTRES } from '@/lib/index';
-import type { ReponseSFE, FormMode } from '@/lib/index';
+import { supabase } from '@/lib/supabase';
+import {
+  generateId, EXPERIENCES, FACTEURS_RISQUE, SIGNES_CLINIQUES, FREQ_CONTROLE_TA,
+  ELEMENTS_HYPERTENDUE, CONDUITE_HTA, ANTIHYPERTENSIFS, CONSEILS_HYPERTENSION,
+  PROPORTIONS_GUERISON, FEMMES_RISQUE, CENTRES,
+} from '@/lib/index';
+import type { ReponseSFE } from '@/lib/index';
+
+// ─── Shared link config ──────────────────────────────────────
+interface ShareConfig {
+  senderName: string;
+  senderEmail: string;
+  centre: string;
+  createdAt: string;
+}
 
 const SECTIONS = [
-  { id: 1, titre: 'Données sociodémographiques', icon: '👤' },
-  { id: 2, titre: 'Connaissances médicales', icon: '🧠' },
-  { id: 3, titre: 'Pratiques professionnelles', icon: '🩺' },
-  { id: 4, titre: 'Évolution & pronostic', icon: '📈' },
+  { id: 1, titre: 'Sociodémographiques', icon: '👤' },
+  { id: 2, titre: 'Connaissances', icon: '🧠' },
+  { id: 3, titre: 'Pratiques', icon: '🩺' },
+  { id: 4, titre: 'Évolution', icon: '📈' },
 ];
 
+// ─── Reusable form components ────────────────────────────────
 function CheckboxGroup({ options, selected, onChange, other, onOther, otherLabel = 'Autre' }: {
   options: string[]; selected: string[]; onChange: (v: string[]) => void;
   other?: string; onOther?: (v: string) => void; otherLabel?: string;
@@ -30,8 +43,8 @@ function CheckboxGroup({ options, selected, onChange, other, onOther, otherLabel
   return (
     <div className="space-y-2">
       {options.map(opt => (
-        <label 
-          key={opt} 
+        <label
+          key={opt}
           onClick={() => toggle(opt)}
           className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all select-none ${selected.includes(opt) ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40 hover:bg-secondary/50'}`}
         >
@@ -57,8 +70,8 @@ function RadioGroup({ options, value, onChange, other, onOther }: {
   return (
     <div className="space-y-2">
       {options.map(opt => (
-        <label 
-          key={opt} 
+        <label
+          key={opt}
           onClick={() => onChange(opt)}
           className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all select-none ${value === opt ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40 hover:bg-secondary/50'}`}
         >
@@ -93,144 +106,123 @@ const emptyForm = (): Partial<ReponseSFE> => ({
   femmesRisqueComplications: [],
 });
 
-export default function FormulaireSFE() {
-  const [mode, setMode] = useState<FormMode | null>(null);
+// ─── To snake case for supabase ──────────────────────────────
+function toSnakeCase(obj: Record<string, unknown>): Record<string, unknown> {
+  const snake: Record<string, unknown> = {};
+  for (const key in obj) {
+    const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+    snake[snakeKey] = obj[key];
+  }
+  return snake;
+}
+
+export default function QuestionnairePartage() {
+  const { shareId } = useParams<{ shareId: string }>();
+  const navigate = useNavigate();
+  const [config, setConfig] = useState<ShareConfig | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [section, setSection] = useState(0);
   const [form, setForm] = useState<Partial<ReponseSFE>>(emptyForm());
   const [centre, setCentre] = useState('');
   const [customCentre, setCustomCentre] = useState('');
-  const [saved, setSaved] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [shareLink, setShareLink] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [direction, setDirection] = useState(0);
-  const { save } = useSFEData();
-  const { user } = useAuth();
-  const navigate = useNavigate();
 
   const up = (field: string, value: unknown) => setForm(f => ({ ...f, [field]: value }));
 
-  const handleSave = async (statut: 'complet' | 'brouillon') => {
-    setLoading(true);
+  useEffect(() => {
+    if (!shareId) { setNotFound(true); setLoading(false); return; }
+    try {
+      const raw = localStorage.getItem(`mc_share_${shareId}`);
+      if (!raw) { setNotFound(true); setLoading(false); return; }
+      const parsed: ShareConfig = JSON.parse(raw);
+      setConfig(parsed);
+    } catch {
+      setNotFound(true);
+    }
+    setLoading(false);
+  }, [shareId]);
+
+  const handleSubmit = async () => {
+    if (!config) return;
+    setSubmitting(true);
     try {
       const r: ReponseSFE = {
         id: generateId(),
         date: new Date().toISOString(),
-        sageFemme: `${user?.prenom || ''} ${user?.nom || ''}`.trim(),
-        centre: (centre === 'Autre' ? customCentre : centre) || user?.centre || '',
+        sageFemme: config.senderName,
+        centre: (centre === 'Autre' ? customCentre : centre) || config.centre,
         ...(form as ReponseSFE),
-        statut,
+        statut: 'complet',
         alerte: false,
       };
-      await save(r);
-      toast.success('Enquête enregistrée avec succès');
-      setSaved(true);
-      setTimeout(() => navigate(ROUTE_PATHS.HISTORIQUE), 1500);
-    } catch (err: any) {
-      console.error('Save failed:', err);
-      toast.error(`Erreur lors de l'enregistrement : ${err.message || 'Problème de connexion'}`);
+      const { error } = await supabase.from('surveys_sfe').upsert(toSnakeCase(r as unknown as Record<string, unknown>));
+      if (error) throw error;
+      setSubmitted(true);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur lors de l'envoi";
+      toast.error(message);
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  const handleShare = () => {
-    const shareId = generateId();
-    const config = {
-      senderName: `${user?.prenom || ''} ${user?.nom || ''}`.trim() || 'Sage-femme',
-      senderEmail: user?.email || '',
-      centre: (centre === 'Autre' ? customCentre : centre) || user?.centre || '',
-      createdAt: new Date().toISOString(),
-    };
-    localStorage.setItem(`mc_share_${shareId}`, JSON.stringify(config));
-    const baseUrl = window.location.origin + window.location.pathname;
-    const link = `${baseUrl}#/questionnaire/sfe/${shareId}`;
-    setShareLink(link);
-    navigator.clipboard.writeText(link).then(() => {
-      toast.success('Lien copié dans le presse-papiers !');
-    }).catch(() => {
-      toast.success('Lien généré — copiez-le ci-dessous');
-    });
-  };
-
-  if (!mode) {
+  // ─── Loading ──────────────────────────────────────────────
+  if (loading) {
     return (
-      <div className="p-4 lg:p-6">
-        <div className="max-w-2xl mx-auto">
-          <Button variant="ghost" size="sm" onClick={() => navigate(ROUTE_PATHS.DASHBOARD)} className="mb-4 gap-2 text-muted-foreground">
-            <ArrowLeft className="w-4 h-4" /> Retour
-          </Button>
-          <h1 className="text-2xl font-bold text-foreground mb-1">Enquête Sage-Femme</h1>
-          <p className="text-muted-foreground mb-6 text-sm">Choisissez le mode de saisie</p>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
 
-          {/* Bouton Partager */}
-          <div className="mb-6 p-4 bg-primary/5 border border-primary/20 rounded-2xl">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <Share2 className="w-5 h-5 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground">Partager le questionnaire</p>
-                <p className="text-xs text-muted-foreground">Générez un lien à envoyer à une sage-femme</p>
-              </div>
-              <Button size="sm" onClick={handleShare} className="gap-2 shrink-0">
-                <Share2 className="w-3 h-3" /> Partager
-              </Button>
-            </div>
-            {shareLink && (
-              <div className="mt-3 flex items-center gap-2 bg-white rounded-lg p-2 border border-primary/10">
-                <Input value={shareLink} readOnly className="h-8 text-xs bg-transparent border-none" />
-                <Button size="sm" variant="ghost" className="h-8 px-2 shrink-0" onClick={() => { navigator.clipboard.writeText(shareLink); toast.success('Lien copié !'); }}>
-                  <Copy className="w-3 h-3" />
-                </Button>
-              </div>
-            )}
+  // ─── Not found ────────────────────────────────────────────
+  if (notFound || !config) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+        <div className="text-center space-y-4 max-w-sm">
+          <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto">
+            <AlertTriangle className="w-8 h-8 text-red-500" />
           </div>
-
-          <div className="grid sm:grid-cols-2 gap-4">
-            <motion.div whileHover={{ y: -4 }} whileTap={{ scale: 0.98 }}>
-              <Card onClick={() => setMode('patient')} className="cursor-pointer border-2 hover:border-primary transition-all hover:shadow-lg hover:shadow-primary/10">
-                <CardContent className="p-6 text-center space-y-3">
-                  <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto">
-                    <User className="w-7 h-7 text-primary" />
-                  </div>
-                  <h3 className="font-bold text-foreground text-lg">Mode Patient</h3>
-                  <p className="text-sm text-muted-foreground">Remplissage en présence de la sage-femme. Interface guidée, étape par étape.</p>
-                  <Badge className="bg-primary/10 text-primary border-primary/20 text-xs">Recommandé</Badge>
-                </CardContent>
-              </Card>
-            </motion.div>
-            <motion.div whileHover={{ y: -4 }} whileTap={{ scale: 0.98 }}>
-              <Card onClick={() => setMode('registre')} className="cursor-pointer border-2 hover:border-primary transition-all hover:shadow-lg hover:shadow-primary/10">
-                <CardContent className="p-6 text-center space-y-3">
-                  <div className="w-14 h-14 bg-accent/20 rounded-2xl flex items-center justify-center mx-auto">
-                    <Zap className="w-7 h-7 text-accent-foreground" />
-                  </div>
-                  <h3 className="font-bold text-foreground text-lg">Mode Registre</h3>
-                  <p className="text-sm text-muted-foreground">Saisie rapide depuis le registre. Formulaire compact, accès direct à tous les champs.</p>
-                  <Badge variant="outline" className="text-xs">Saisie accélérée</Badge>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </div>
+          <h2 className="text-xl font-bold text-slate-900">Lien invalide ou expiré</h2>
+          <p className="text-sm text-slate-500">Ce questionnaire n'est plus disponible ou le lien est incorrect.</p>
         </div>
       </div>
     );
   }
 
-  if (saved) {
+  // ─── Success ──────────────────────────────────────────────
+  if (submitted) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-96 p-6">
-        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }}>
-          <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-            <CheckCircle className="w-10 h-10 text-emerald-600" />
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-sm"
+        >
+          <div className="bg-white rounded-3xl shadow-2xl p-8 text-center space-y-6">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 20, delay: 0.2 }}
+              className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mx-auto"
+            >
+              <CheckCircle className="w-10 h-10 text-emerald-600" />
+            </motion.div>
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900">Merci !</h2>
+              <p className="text-slate-500 mt-2 text-sm">Votre réponse a été enregistrée avec succès.</p>
+            </div>
+            <p className="text-xs text-slate-400">Enquête pour {config.senderName}</p>
           </div>
         </motion.div>
-        <h2 className="text-2xl font-bold text-foreground">Enquête enregistrée !</h2>
-        <p className="text-muted-foreground mt-1">Redirection vers l'historique…</p>
       </div>
     );
   }
 
+  // ─── Form sections ────────────────────────────────────────
   const isLast = section === SECTIONS.length - 1;
   const progress = ((section + 1) / SECTIONS.length) * 100;
 
@@ -274,23 +266,23 @@ export default function FormulaireSFE() {
       case 1: return (
         <div className="space-y-6">
           <div className="space-y-2">
-            <Label className="text-base font-semibold">4. L'HTA pendant la grossesse se définit par :</Label>
+            <Label className="text-base font-semibold">L'HTA pendant la grossesse se définit par :</Label>
             <RadioGroup options={['TA ≥140/90 mmHg']} value={form.defHta || ''} onChange={v => up('defHta', v)} other={form.autreDefHta} onOther={v => up('autreDefHta', v)} />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">5. La prééclampsie est caractérisée par :</Label>
+            <Label className="text-base font-semibold">La prééclampsie est caractérisée par :</Label>
             <RadioGroup options={['HTA + protéinurie']} value={form.caracPreeclampsie || ''} onChange={v => up('caracPreeclampsie', v)} other={form.autreCaracPreeclampsie} onOther={v => up('autreCaracPreeclampsie', v)} />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">6. Âge gestationnel d'apparition de la prééclampsie :</Label>
+            <Label className="text-base font-semibold">Âge gestationnel d'apparition de la prééclampsie :</Label>
             <RadioGroup options={['Après 20 semaines d\'aménorrhée']} value={form.ageGestationnel || ''} onChange={v => up('ageGestationnel', v)} other={form.autreAgeGestationnel} onOther={v => up('autreAgeGestationnel', v)} />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">7. Principaux facteurs de risque de la prééclampsie :</Label>
+            <Label className="text-base font-semibold">Principaux facteurs de risque de la prééclampsie :</Label>
             <CheckboxGroup options={FACTEURS_RISQUE} selected={form.factRisque || []} onChange={v => up('factRisque', v)} other={form.autreFactRisque} onOther={v => up('autreFactRisque', v)} />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">8. Signes cliniques évocateurs de prééclampsie :</Label>
+            <Label className="text-base font-semibold">Signes cliniques évocateurs de prééclampsie :</Label>
             <CheckboxGroup options={SIGNES_CLINIQUES} selected={form.signesCliniques || []} onChange={v => up('signesCliniques', v)} other={form.autreSignesCliniques} onOther={v => up('autreSignesCliniques', v)} />
           </div>
         </div>
@@ -299,61 +291,61 @@ export default function FormulaireSFE() {
       case 2: return (
         <div className="space-y-6">
           <div className="space-y-2">
-            <Label className="text-base font-semibold">9. Fréquence de contrôle de la TA :</Label>
+            <Label className="text-base font-semibold">Fréquence de contrôle de la TA :</Label>
             <RadioGroup options={FREQ_CONTROLE_TA} value={form.freqControleTA || ''} onChange={v => up('freqControleTA', v)} other={form.autreFreqControleTA} onOther={v => up('autreFreqControleTA', v)} />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">10. Mesure systématique de la TA :</Label>
+            <Label className="text-base font-semibold">Mesure systématique de la TA :</Label>
             <RadioGroup options={['Toujours', 'Parfois', 'Jamais']} value={form.mesureSystematiqueTA || ''} onChange={v => up('mesureSystematiqueTA', v)} />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">11. Recherche de la protéinurie dans le bilan prénatal :</Label>
+            <Label className="text-base font-semibold">Recherche de la protéinurie dans le bilan prénatal :</Label>
             <RadioGroup options={['Toujours', 'Parfois', 'Jamais']} value={form.recherchProteinurie || ''} onChange={v => up('recherchProteinurie', v)} other={form.autreRecherchProteinurie} onOther={v => up('autreRecherchProteinurie', v)} />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">12. Surveillance des mouvements fœtaux ?</Label>
+            <Label className="text-base font-semibold">Surveillance des mouvements fœtaux ?</Label>
             <RadioGroup options={['Oui', 'Non']} value={form.surveillanceMvtFoetaux ? 'Oui' : form.surveillanceMvtFoetaux === false ? 'Non' : ''} onChange={v => up('surveillanceMvtFoetaux', v === 'Oui')} />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">13. Éléments à rechercher chez une femme hypertendue :</Label>
+            <Label className="text-base font-semibold">Éléments à rechercher chez une femme hypertendue :</Label>
             <CheckboxGroup options={ELEMENTS_HYPERTENDUE} selected={form.elementsHypertendue || []} onChange={v => up('elementsHypertendue', v)} other={form.autreElementsHypertendue} onOther={v => up('autreElementsHypertendue', v)} />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">14. Conduite à tenir en cas d'HTA :</Label>
+            <Label className="text-base font-semibold">Conduite à tenir en cas d'HTA :</Label>
             <CheckboxGroup options={CONDUITE_HTA} selected={form.conduiteHtaGrossesse || []} onChange={v => up('conduiteHtaGrossesse', v)} other={form.autreConduiteHta} onOther={v => up('autreConduiteHta', v)} />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">15. Antihypertensifs utilisables pendant la grossesse :</Label>
+            <Label className="text-base font-semibold">Antihypertensifs utilisables pendant la grossesse :</Label>
             <CheckboxGroup options={ANTIHYPERTENSIFS} selected={form.antihypertensifs || []} onChange={v => up('antihypertensifs', v)} other={form.autreAntihypertensifs} onOther={v => up('autreAntihypertensifs', v)} />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">16. Dans quel cas décidez-vous de référer une patiente ?</Label>
+            <Label className="text-base font-semibold">Dans quel cas décidez-vous de référer une patiente ?</Label>
             <Textarea placeholder="Décrivez les critères de référence…" value={form.casReference || ''} onChange={e => up('casReference', e.target.value)} className="min-h-20 resize-none" />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">18. Conseils aux femmes enceintes hypertendues :</Label>
+            <Label className="text-base font-semibold">Conseils aux femmes enceintes hypertendues :</Label>
             <CheckboxGroup options={CONSEILS_HYPERTENSION} selected={form.conseilsHypertendue || []} onChange={v => up('conseilsHypertendue', v)} />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">19. Difficultés dans la surveillance de l'HTA ?</Label>
+            <Label className="text-base font-semibold">Difficultés dans la surveillance de l'HTA ?</Label>
             <RadioGroup options={['Oui', 'Non']} value={form.difficultesHta ? 'Oui' : form.difficultesHta === false ? 'Non' : ''} onChange={v => up('difficultesHta', v === 'Oui')} />
             {form.difficultesHta && (
               <Textarea placeholder="Décrivez les difficultés rencontrées…" value={form.detailsDifficultes || ''} onChange={e => up('detailsDifficultes', e.target.value)} className="min-h-16 resize-none mt-2" />
             )}
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">21. Améliorations proposées :</Label>
+            <Label className="text-base font-semibold">Améliorations proposées :</Label>
             <Textarea placeholder="Vos suggestions…" value={form.ameliorationsProposees || ''} onChange={e => up('ameliorationsProposees', e.target.value)} className="min-h-16 resize-none" />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">22. Collaboration avec les relais communautaires ?</Label>
+            <Label className="text-base font-semibold">Collaboration avec les relais communautaires ?</Label>
             <RadioGroup options={['Oui', 'Non']} value={form.collaborationRelais ? 'Oui' : form.collaborationRelais === false ? 'Non' : ''} onChange={v => up('collaborationRelais', v === 'Oui')} />
             {form.collaborationRelais && (
               <Textarea placeholder="Si oui, comment ?" value={form.commentCollaboration || ''} onChange={e => up('commentCollaboration', e.target.value)} className="min-h-16 resize-none mt-2" />
             )}
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">23. Les fiches de contre-référence sont-elles renvoyées ?</Label>
+            <Label className="text-base font-semibold">Les fiches de contre-référence sont-elles renvoyées ?</Label>
             <RadioGroup options={['Oui', 'Non']} value={form.contreRefRenvoyees ? 'Oui' : form.contreRefRenvoyees === false ? 'Non' : ''} onChange={v => up('contreRefRenvoyees', v === 'Oui')} />
             {!form.contreRefRenvoyees && form.contreRefRenvoyees === false && (
               <Textarea placeholder="Si non, pourquoi ?" value={form.pourquoiNonContreRef || ''} onChange={e => up('pourquoiNonContreRef', e.target.value)} className="min-h-16 resize-none mt-2" />
@@ -365,25 +357,12 @@ export default function FormulaireSFE() {
       case 3: return (
         <div className="space-y-6">
           <div className="space-y-2">
-            <Label className="text-base font-semibold">24. Proportion de guérisons / évolutions favorables :</Label>
+            <Label className="text-base font-semibold">Proportion de guérissons / évolutions favorables :</Label>
             <RadioGroup options={PROPORTIONS_GUERISON} value={form.proportionGuerison || ''} onChange={v => up('proportionGuerison', v)} other={form.autreProportionGuerison} onOther={v => up('autreProportionGuerison', v)} />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">25. Femmes ayant plus de risque de complications :</Label>
+            <Label className="text-base font-semibold">Femmes ayant plus de risque de complications :</Label>
             <CheckboxGroup options={FEMMES_RISQUE} selected={form.femmesRisqueComplications || []} onChange={v => up('femmesRisqueComplications', v)} />
-          </div>
-
-          {/* Score de connaissances */}
-          <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
-            <h3 className="font-semibold text-foreground text-sm mb-2 flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-primary" /> Résumé de l'enquête
-            </h3>
-            <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-              <span>Section 1 : {form.experiencePro ? '✅' : '⏳'} Sociodémo</span>
-              <span>Section 2 : {form.defHta ? '✅' : '⏳'} Connaissances</span>
-              <span>Section 3 : {form.freqControleTA ? '✅' : '⏳'} Pratiques</span>
-              <span>Section 4 : {form.proportionGuerison ? '✅' : '⏳'} Évolution</span>
-            </div>
           </div>
         </div>
       );
@@ -392,93 +371,88 @@ export default function FormulaireSFE() {
     }
   };
 
+  // ─── Render ────────────────────────────────────────────────
   return (
-    <div className="p-4 lg:p-6 max-w-3xl mx-auto">
-      <div className="flex items-center gap-3 mb-5">
-        <Button variant="ghost" size="sm" onClick={() => { if (section > 0) { setSection(s => s - 1); } else { setMode(null); } }} className="gap-1 text-muted-foreground">
-          <ArrowLeft className="w-4 h-4" /> Retour
-        </Button>
-        <div className="flex-1">
-          <div className="flex items-center justify-between mb-1">
-            <Badge variant="outline" className="text-xs">{mode === 'patient' ? 'Mode Patient' : 'Mode Registre'}</Badge>
-            <span className="text-xs text-muted-foreground">Section {section + 1} / {SECTIONS.length}</span>
+    <div className="min-h-screen bg-slate-50">
+      {/* Header */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
+          <img src="/icon.png" alt="MaterniCare" className="w-8 h-8 rounded-lg" />
+          <div className="flex-1 min-w-0">
+            <h1 className="text-sm font-bold text-slate-900 truncate">Enquête Sage-Femme</h1>
+            <p className="text-xs text-slate-500 truncate">Partagée par {config.senderName}</p>
           </div>
-          <div className="h-2 bg-secondary rounded-full overflow-hidden">
-            <motion.div
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 0.4 }}
-              className="h-full bg-primary rounded-full"
-            />
-          </div>
+          <Badge variant="outline" className="text-xs shrink-0">Section {section + 1}/{SECTIONS.length}</Badge>
         </div>
-      </div>
+        <div className="h-1 bg-slate-100">
+          <motion.div animate={{ width: `${progress}%` }} transition={{ duration: 0.4 }} className="h-full bg-primary rounded-full" />
+        </div>
+      </header>
 
-      {/* Stepper */}
-      <div className="flex gap-2 mb-5 overflow-x-auto pb-1 no-scrollbar">
-        {SECTIONS.map((s, i) => (
-          <button 
-            key={s.id} 
-            onClick={() => {
-              setDirection(i > section ? 1 : -1);
-              setSection(i);
-            }} 
-            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-all btn-active-scale ${i === section ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20' : i < section ? 'bg-emerald-100 text-emerald-700' : 'bg-secondary text-muted-foreground'}`}
-          >
-            {i < section ? '✓' : s.icon} {s.titre}
-          </button>
-        ))}
-      </div>
+      <div className="max-w-3xl mx-auto p-4 pb-28">
+        {/* Stepper */}
+        <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
+          {SECTIONS.map((s, i) => (
+            <button
+              key={s.id}
+              onClick={() => { setDirection(i > section ? 1 : -1); setSection(i); }}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${i === section ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20' : i < section ? 'bg-emerald-100 text-emerald-700' : 'bg-secondary text-muted-foreground'}`}
+            >
+              {i < section ? '✓' : s.icon} {s.titre}
+            </button>
+          ))}
+        </div>
 
-      <AnimatePresence mode="wait" custom={direction}>
-        <motion.div 
+        <motion.div
           key={section}
           custom={direction}
-          initial={{ opacity: 0, x: direction * 50 }}
+          initial={{ opacity: 0, x: direction * 30 }}
           animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -direction * 50 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
         >
-          <Card className="border-border shadow-sm mb-24">
+          <Card className="border-border shadow-sm">
             <CardHeader className="pb-3 px-4">
               <CardTitle className="text-lg flex items-center gap-2">
-                <span className="p-2 rounded-lg bg-primary/10 text-primary">{SECTIONS[section].icon}</span> 
-                <span className="truncate">{SECTIONS[section].titre}</span>
+                <span className="p-2 rounded-lg bg-primary/10 text-primary">{SECTIONS[section].icon}</span>
+                <span>{SECTIONS[section].titre}</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-6">{renderSection()}</CardContent>
           </Card>
         </motion.div>
-      </AnimatePresence>
+      </div>
 
-      {/* Sticky Bottom Actions */}
-      <div className="fixed bottom-0 left-0 right-0 lg:left-64 lg:bottom-0 p-4 pb-[calc(var(--safe-area-bottom)+80px)] lg:pb-6 glass border-t border-border/50 z-20">
+      {/* Sticky bottom actions */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 pb-[calc(var(--safe-area-bottom,0px)+16px)] bg-white/90 backdrop-blur-lg border-t border-slate-200 z-30">
         <div className="max-w-3xl mx-auto flex gap-3">
-          <Button 
-            variant="outline" 
-            size="lg" 
-            onClick={() => handleSave('brouillon')} 
-            disabled={loading} 
-            className="gap-2 flex-1 sm:flex-none h-12 rounded-xl text-xs font-bold"
-          >
-            <Save className="w-4 h-4" /> {loading ? '...' : 'Brouillon'}
-          </Button>
-          <div className="flex-1 hidden sm:block" />
-          {!isLast ? (
-            <Button 
-              onClick={() => { setDirection(1); setSection(s => s + 1); }} 
+          {section > 0 && (
+            <Button
+              variant="outline"
               size="lg"
-              className="gap-2 flex-1 sm:flex-none h-12 rounded-xl bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 text-xs font-bold"
+              onClick={() => { setDirection(-1); setSection(s => s - 1); }}
+              className="gap-2 h-12 rounded-xl text-xs font-bold"
+            >
+              <ChevronLeft className="w-4 h-4" /> Précédent
+            </Button>
+          )}
+          <div className="flex-1" />
+          {!isLast ? (
+            <Button
+              onClick={() => { setDirection(1); setSection(s => s + 1); }}
+              size="lg"
+              className="gap-2 h-12 rounded-xl bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 text-xs font-bold"
             >
               Suivant <ChevronRight className="w-4 h-4" />
             </Button>
           ) : (
-            <Button 
-              onClick={() => handleSave('complet')} 
-              disabled={loading} 
+            <Button
+              onClick={handleSubmit}
+              disabled={submitting}
               size="lg"
-              className="gap-2 flex-1 sm:flex-none h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-200 text-xs font-bold"
+              className="gap-2 h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-200 text-xs font-bold"
             >
-              <CheckCircle className="w-4 h-4" /> {loading ? 'Envoi...' : 'Enregistrer'}
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+              {submitting ? 'Envoi...' : 'Envoyer'}
             </Button>
           )}
         </div>

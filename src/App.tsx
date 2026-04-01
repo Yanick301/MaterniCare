@@ -15,6 +15,7 @@ import Welcome from '@/pages/Welcome';
 import Signup from '@/pages/Signup';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
+import QuestionnairePartage from '@/pages/QuestionnairePartage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isReady } = useAuth();
@@ -57,6 +58,7 @@ export default function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/questionnaire/sfe/:shareId" element={<QuestionnairePartage />} />
 
         {/* Protected App Routes */}
         <Route element={

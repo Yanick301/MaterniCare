@@ -51,7 +51,13 @@ export default function Signup() {
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Erreur lors de l'inscription";
-      toast.error(message);
+      if (message.toLowerCase().includes('rate limit')) {
+        toast.error("Trop d'emails envoyés. Veuillez patienter quelques minutes puis réessayer.");
+      } else if (message.toLowerCase().includes('already registered') || message.toLowerCase().includes('already exists')) {
+        toast.error("Cet email est déjà utilisé. Essayez de vous connecter.");
+      } else {
+        toast.error(message);
+      }
     } finally {
       setLoading(false);
     }
