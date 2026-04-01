@@ -198,6 +198,7 @@ export function useAuth() {
       email,
       password,
       options: {
+        emailRedirectTo: `${window.location.origin}/`,
         data: {
           nom: metadata.nom,
           prenom: metadata.prenom,
@@ -208,7 +209,9 @@ export function useAuth() {
     });
 
     if (error) throw error;
-    return !!data.user;
+
+    const needsConfirmation = !data.session && data.user && !data.user.email_confirmed_at;
+    return { user: !!data.user, needsConfirmation };
   }, []);
 
   const resetPassword = useCallback(async (email: string) => {

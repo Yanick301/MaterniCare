@@ -161,7 +161,7 @@ function drawHeader(doc: jsPDF, title: string, subtitle: string, pageNum: { curr
   doc.text(dateStr, pageWidth - margin, 18, { align: 'right' });
 
   // Titre de la fiche
-  let y = 48;
+  const y = 48;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
   doc.setTextColor(...PDF_COLORS.primaryDark);
