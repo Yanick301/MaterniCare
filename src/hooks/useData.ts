@@ -87,9 +87,14 @@ export function useSFEData() {
   }, [fetchResponses]);
 
   const save = useCallback(async (r: ReponseSFE) => {
+    const data = toSnakeCase(r as unknown as Record<string, unknown>);
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData.session?.user?.id) {
+      data.user_id = sessionData.session.user.id;
+    }
     const { error } = await supabase
       .from('surveys_sfe')
-      .upsert(toSnakeCase(r as unknown as Record<string, unknown>));
+      .upsert(data);
 
     if (error) throw error;
     fetchResponses();
@@ -131,9 +136,14 @@ export function usePatientesData() {
   }, [fetchResponses]);
 
   const save = useCallback(async (r: ReponsePatiente) => {
+    const data = toSnakeCase(r as unknown as Record<string, unknown>);
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData.session?.user?.id) {
+      data.user_id = sessionData.session.user.id;
+    }
     const { error } = await supabase
       .from('surveys_patientes')
-      .upsert(toSnakeCase(r as unknown as Record<string, unknown>));
+      .upsert(data);
 
     if (error) throw error;
     fetchResponses();
@@ -251,4 +261,39 @@ export function useOnlineStatus() {
   }, []);
 
   return isOnline;
+}
+
+// ─── Shared Links ──────────────────────────────────────────────
+export interface SharedLink {
+  id: string;
+  userId: string;
+  senderName: string;
+  senderEmail: string;
+  centre: string;
+  formType: 'sfe' | 'patiente';
+  active: boolean;
+  createdAt: string;
+}
+
+export async function createSharedLink(link: Omit<SharedLink, 'userId' | 'active' | 'createdAt'>): Promise<void> {
+  const data = toSnakeCase(link as unknown as Record<string, unknown>);
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (sessionData.session?.user?.id) {
+    data.user_id = sessionData.session.user.id;
+  }
+  const { error } = await supabase.from('shared_links').insert(data);
+  if (error) throw error;
+}
+
+export async function getSharedLink(id: string): Promise<SharedLink | null> {
+  const { data, error } = await supabase
+    .from('shared_links')
+    .select('*')
+    .eq('id', id)
+    .eq('active', true)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  const camel = toCamelCase(data as Record<string, unknown>);
+  return camel as unknown as SharedLink;
 }

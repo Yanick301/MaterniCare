@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { useSFEData, useAuth } from '@/hooks/useData';
+import { useSFEData, useAuth, createSharedLink } from '@/hooks/useData';
 import { generateId, detectAlertePatiente, ROUTE_PATHS, EXPERIENCES, FACTEURS_RISQUE, SIGNES_CLINIQUES, FREQ_CONTROLE_TA, ELEMENTS_HYPERTENDUE, CONDUITE_HTA, ANTIHYPERTENSIFS, CONSEILS_HYPERTENSION, PROPORTIONS_GUERISON, FEMMES_RISQUE, CENTRES } from '@/lib/index';
 import type { ReponseSFE, FormMode } from '@/lib/index';
 
@@ -133,23 +133,27 @@ export default function FormulaireSFE() {
     }
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
     const shareId = generateId();
-    const config = {
-      senderName: `${user?.prenom || ''} ${user?.nom || ''}`.trim() || 'Sage-femme',
-      senderEmail: user?.email || '',
-      centre: (centre === 'Autre' ? customCentre : centre) || user?.centre || '',
-      createdAt: new Date().toISOString(),
-    };
-    localStorage.setItem(`mc_share_${shareId}`, JSON.stringify(config));
-    const baseUrl = window.location.origin + window.location.pathname;
-    const link = `${baseUrl}#/questionnaire/sfe/${shareId}`;
-    setShareLink(link);
-    navigator.clipboard.writeText(link).then(() => {
-      toast.success('Lien copié dans le presse-papiers !');
-    }).catch(() => {
-      toast.success('Lien généré — copiez-le ci-dessous');
-    });
+    try {
+      await createSharedLink({
+        id: shareId,
+        senderName: `${user?.prenom || ''} ${user?.nom || ''}`.trim() || 'Sage-femme',
+        senderEmail: user?.email || '',
+        centre: (centre === 'Autre' ? customCentre : centre) || user?.centre || '',
+        formType: 'sfe',
+      });
+      const baseUrl = window.location.origin + window.location.pathname;
+      const link = `${baseUrl}#/questionnaire/sfe/${shareId}`;
+      setShareLink(link);
+      navigator.clipboard.writeText(link).then(() => {
+        toast.success('Lien copié dans le presse-papiers !');
+      }).catch(() => {
+        toast.success('Lien généré — copiez-le ci-dessous');
+      });
+    } catch (err: any) {
+      toast.error(`Erreur lors de la création du lien : ${err.message || 'Problème de connexion'}`);
+    }
   };
 
   if (!mode) {

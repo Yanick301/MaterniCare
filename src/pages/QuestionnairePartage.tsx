@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
+import { getSharedLink } from '@/hooks/useData';
 import {
   generateId, EXPERIENCES, FACTEURS_RISQUE, SIGNES_CLINIQUES, FREQ_CONTROLE_TA,
   ELEMENTS_HYPERTENDUE, CONDUITE_HTA, ANTIHYPERTENSIFS, CONSEILS_HYPERTENSION,
@@ -19,9 +20,12 @@ import type { ReponseSFE } from '@/lib/index';
 
 // ─── Shared link config ──────────────────────────────────────
 interface ShareConfig {
+  id: string;
   senderName: string;
   senderEmail: string;
   centre: string;
+  formType: string;
+  userId: string;
   createdAt: string;
 }
 
@@ -134,15 +138,16 @@ export default function QuestionnairePartage() {
 
   useEffect(() => {
     if (!shareId) { setNotFound(true); setLoading(false); return; }
-    try {
-      const raw = localStorage.getItem(`mc_share_${shareId}`);
-      if (!raw) { setNotFound(true); setLoading(false); return; }
-      const parsed: ShareConfig = JSON.parse(raw);
-      setConfig(parsed);
-    } catch {
-      setNotFound(true);
-    }
-    setLoading(false);
+    (async () => {
+      try {
+        const link = await getSharedLink(shareId);
+        if (!link) { setNotFound(true); setLoading(false); return; }
+        setConfig(link);
+      } catch {
+        setNotFound(true);
+      }
+      setLoading(false);
+    })();
   }, [shareId]);
 
   const handleSubmit = async () => {
@@ -158,7 +163,9 @@ export default function QuestionnairePartage() {
         statut: 'complet',
         alerte: false,
       };
-      const { error } = await supabase.from('surveys_sfe').upsert(toSnakeCase(r as unknown as Record<string, unknown>));
+      const data = toSnakeCase(r as unknown as Record<string, unknown>);
+      data.user_id = config.userId;
+      const { error } = await supabase.from('surveys_sfe').upsert(data);
       if (error) throw error;
       setSubmitted(true);
     } catch (err: unknown) {

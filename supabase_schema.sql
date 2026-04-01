@@ -93,6 +93,18 @@ DROP POLICY IF EXISTS "Les experts peuvent modifier leurs enquêtes SFE" ON publ
 CREATE POLICY "Les experts peuvent modifier leurs enquêtes SFE" 
 ON public.surveys_sfe FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Les experts peuvent supprimer leurs enquêtes SFE" ON public.surveys_sfe;
+CREATE POLICY "Les experts peuvent supprimer leurs enquêtes SFE" 
+ON public.surveys_sfe FOR DELETE USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Utilisateurs authentifiés peuvent insérer des enquêtes SFE" ON public.surveys_sfe;
+CREATE POLICY "Utilisateurs authentifiés peuvent insérer des enquêtes SFE" 
+ON public.surveys_sfe FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "Insertion publique pour questionnaires partagés SFE" ON public.surveys_sfe;
+CREATE POLICY "Insertion publique pour questionnaires partagés SFE" 
+ON public.surveys_sfe FOR INSERT WITH CHECK (true);
+
 -- 3. Table des Enquêtes Patientes
 CREATE TABLE IF NOT EXISTS public.surveys_patientes (
   id TEXT PRIMARY KEY,
@@ -169,7 +181,41 @@ DROP POLICY IF EXISTS "Les experts peuvent modifier les données de leurs patien
 CREATE POLICY "Les experts peuvent modifier les données de leurs patientes" 
 ON public.surveys_patientes FOR UPDATE USING (auth.uid() = user_id);
 
--- 4. Trigger pour la création automatique du profil après inscription
+DROP POLICY IF EXISTS "Les experts peuvent supprimer les données de leurs patientes" ON public.surveys_patientes;
+CREATE POLICY "Les experts peuvent supprimer les données de leurs patientes" 
+ON public.surveys_patientes FOR DELETE USING (auth.uid() = user_id);
+
+-- 4. Table des liens de partage
+CREATE TABLE IF NOT EXISTS public.shared_links (
+  id TEXT PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) DEFAULT auth.uid(),
+  sender_name TEXT NOT NULL,
+  sender_email TEXT,
+  centre TEXT,
+  form_type TEXT NOT NULL DEFAULT 'sfe' CHECK (form_type IN ('sfe', 'patiente')),
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.shared_links ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Les utilisateurs peuvent voir leurs propres liens de partage" ON public.shared_links;
+CREATE POLICY "Les utilisateurs peuvent voir leurs propres liens de partage" 
+ON public.shared_links FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Lecture publique des liens de partage actifs" ON public.shared_links;
+CREATE POLICY "Lecture publique des liens de partage actifs" 
+ON public.shared_links FOR SELECT USING (active = true);
+
+DROP POLICY IF EXISTS "Les utilisateurs peuvent créer des liens de partage" ON public.shared_links;
+CREATE POLICY "Les utilisateurs peuvent créer des liens de partage" 
+ON public.shared_links FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Les utilisateurs peuvent supprimer leurs liens de partage" ON public.shared_links;
+CREATE POLICY "Les utilisateurs peuvent supprimer leurs liens de partage" 
+ON public.shared_links FOR DELETE USING (auth.uid() = user_id);
+
+-- 5. Trigger pour la création automatique du profil après inscription
 CREATE OR REPLACE FUNCTION public.handle_new_user() 
 RETURNS TRIGGER AS $$
 BEGIN
