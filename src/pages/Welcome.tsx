@@ -43,6 +43,9 @@ export default function Welcome() {
               Installer l'App
             </Button>
           )}
+          <Link to="/signup">
+            <Button variant="outline" size="sm" className="border-primary text-primary hover:bg-primary/5 font-bold btn-active-scale">S'inscrire</Button>
+          </Link>
           <Link to={ROUTE_PATHS.LOGIN}>
             <Button variant="ghost" size="sm" className="text-primary font-bold hover:bg-primary/5 btn-active-scale">Connexion</Button>
           </Link>

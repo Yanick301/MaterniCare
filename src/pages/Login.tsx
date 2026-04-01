@@ -136,7 +136,7 @@ export default function Login() {
             </Button>
           </form>
 
-          <div className="mt-8 text-center sm:hidden">
+          <div className="mt-8 text-center">
             <p className="text-sm text-muted-foreground">
               Pas encore de compte ?{' '}
               <Link to="/signup" className="text-primary font-bold hover:underline">S'inscrire</Link>
