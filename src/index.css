@@ -1,0 +1,254 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+==========================================================================
+【AI HANDOVER NOTE】
+1. DESIGN PHILOSOPHY:
+   - Healthcare Compassion Design: Interface conçue pour inspirer confiance et sérénité dans un contexte médical sensible (grossesse, prééclampsie)
+   - Soft Professionalism: Équilibre entre rigueur médicale et douceur visuelle, utilisant le rose médical comme couleur signature (#F8BBD0, #E91E8C)
+   - Accessibility-First for Africa: Optimisé pour connexions instables, mode offline robuste, lisibilité maximale sur petits écrans Android
+   - Bento Medical Cards: Surfaces modulaires avec ombres douces, coins arrondis (0.75rem), séparation claire des sections du questionnaire
+   - Progressive Disclosure: Navigation par étapes pour réduire la charge cognitive, particulièrement important pour utilisateurs peu technophiles
+
+2. TYPOGRAPHY:
+   - Plus Jakarta Sans: Choisi pour sa rondeur humaniste et sa lisibilité exceptionnelle sur mobile. Ses formes douces s'alignent avec le thème médical bienveillant tout en maintenant un professionnalisme moderne
+   - Noto Sans (fallback): Support universel pour caractères français et symboles médicaux
+   - JetBrains Mono: Pour affichage de données numériques (tension artérielle, protéinurie, statistiques) et codes de référence patient
+
+3. COLOR SYSTEM:
+   - Brand Primary (Rose Médical): Hue 330° (rose-magenta) représentant la féminité, la maternité et la santé reproductive. Mapping: --brand → --primary (actions principales), --accent (highlights), --ring (focus states)
+   - Semantic Colors:
+     * Success (Hue 150°): Vert doux pour confirmations, grossesses normales, données validées
+     * Warning (Hue 45°): Orange pêche pour alertes modérées, rappels CPN
+     * Destructive (Hue 10°): Rouge corail pour alertes prééclampsie, urgences médicales
+   - Neutral Palette: Gris perle chauds (légère teinte rose) pour maintenir cohérence thématique
+   - Chart Colors: Palette de 5 couleurs harmonieuses (rose, lavande, pêche, menthe, bleu poudré) pour graphiques statistiques
+
+4. USAGE GUIDE:
+   - Layout: Dashboard full-width avec sidebar rose pâle. Formulaires en container centré (max-w-4xl) pour focus optimal
+   - Effects:
+     * Cartes: backdrop-blur-sm avec border rose subtil, shadow-soft pour profondeur
+     * Boutons primaires: gradient rose (#F8BBD0 → #E91E8C) avec hover lift
+     * Inputs: border-2 avec focus:ring-2 rose, transition douce
+   - Mode Patient: Typographie large (text-lg), espacement généreux, boutons tactiles (min-h-12)
+   - Mode Registre: Formulaire compact, saisie rapide, validation inline
+   - Offline Indicator: Badge fixe en haut avec icône sync, couleur warning
+   - Alert System: Modal avec border-l-4 destructive, icône médicale, actions claires
+   - Responsive: Mobile-first, breakpoints à sm:640px (phones), md:768px (tablets), lg:1024px (desktop)
+   - Accessibility: Contraste WCAG AA minimum, focus visible, labels explicites, aria-labels pour icônes
+==========================================================================
+*/
+
+:root {
+  /* Typography */
+  --font-sans: 'Plus Jakarta Sans', 'Noto Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+  
+  /* Radius */
+  --radius: 0.75rem;
+
+  /* Core UI Tokens */
+  --background: oklch(0.99 0.005 330);
+  --foreground: oklch(0.20 0.015 330);
+  --card: oklch(0.98 0.008 330);
+  --card-foreground: oklch(0.22 0.015 330);
+  --popover: oklch(0.99 0.005 330);
+  --popover-foreground: oklch(0.20 0.015 330);
+  --primary: oklch(0.72 0.18 330);
+  --primary-foreground: oklch(0.99 0.005 330);
+  --secondary: oklch(0.92 0.025 330);
+  --secondary-foreground: oklch(0.28 0.020 330);
+  --muted: oklch(0.95 0.012 330);
+  --muted-foreground: oklch(0.52 0.020 330);
+  --accent: oklch(0.80 0.15 340);
+  --accent-foreground: oklch(0.99 0.005 330);
+  --destructive: oklch(0.62 0.22 10);
+  --destructive-foreground: oklch(0.99 0.005 330);
+  --border: oklch(0.88 0.015 330);
+  --input: oklch(0.90 0.015 330);
+  --ring: oklch(0.72 0.18 330);
+  
+  /* Chart Tokens */
+  --chart-1: oklch(0.72 0.18 330);
+  --chart-2: oklch(0.68 0.14 280);
+  --chart-3: oklch(0.75 0.12 35);
+  --chart-4: oklch(0.70 0.13 160);
+  --chart-5: oklch(0.65 0.15 220);
+  
+  /* Sidebar Tokens */
+  --sidebar: oklch(0.96 0.015 330);
+  --sidebar-foreground: oklch(0.28 0.020 330);
+  --sidebar-primary: oklch(0.72 0.18 330);
+  --sidebar-primary-foreground: oklch(0.99 0.005 330);
+  --sidebar-accent: oklch(0.90 0.025 330);
+  --sidebar-accent-foreground: oklch(0.28 0.020 330);
+  --sidebar-border: oklch(0.88 0.015 330);
+  --sidebar-ring: oklch(0.72 0.18 330);
+
+  /* Safe Area Insets */
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+}
+
+.dark {
+  --background: oklch(0.15 0.020 330);
+  --foreground: oklch(0.92 0.010 330);
+  --card: oklch(0.18 0.022 330);
+  --card-foreground: oklch(0.90 0.010 330);
+  --popover: oklch(0.16 0.020 330);
+  --popover-foreground: oklch(0.92 0.010 330);
+  --primary: oklch(0.75 0.20 330);
+  --primary-foreground: oklch(0.15 0.020 330);
+  --secondary: oklch(0.25 0.030 330);
+  --secondary-foreground: oklch(0.88 0.010 330);
+  --muted: oklch(0.22 0.025 330);
+  --muted-foreground: oklch(0.62 0.015 330);
+  --accent: oklch(0.78 0.18 340);
+  --accent-foreground: oklch(0.15 0.020 330);
+  --destructive: oklch(0.65 0.25 10);
+  --destructive-foreground: oklch(0.95 0.008 330);
+  --border: oklch(0.28 0.025 330);
+  --input: oklch(0.26 0.025 330);
+  --ring: oklch(0.75 0.20 330);
+  
+  /* Chart Tokens */
+  --chart-1: oklch(0.75 0.20 330);
+  --chart-2: oklch(0.70 0.16 280);
+  --chart-3: oklch(0.78 0.14 35);
+  --chart-4: oklch(0.72 0.15 160);
+  --chart-5: oklch(0.68 0.17 220);
+  
+  /* Sidebar Tokens */
+  --sidebar: oklch(0.17 0.022 330);
+  --sidebar-foreground: oklch(0.88 0.010 330);
+  --sidebar-primary: oklch(0.75 0.20 330);
+  --sidebar-primary-foreground: oklch(0.15 0.020 330);
+  --sidebar-accent: oklch(0.25 0.030 330);
+  --sidebar-accent-foreground: oklch(0.88 0.010 330);
+  --sidebar-border: oklch(0.28 0.025 330);
+  --sidebar-ring: oklch(0.75 0.20 330);
+}
+
+@theme inline {
+  /* Shadcn Core Mapping */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Charts Mapping */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Sidebar Mapping */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Typography */
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  /* Radius */
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+    user-select: none;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "rlig" 1, "calt" 1, "cv02", "cv03", "cv04", "cv11";
+    min-height: 100dvh;
+    padding-top: var(--safe-area-top);
+    padding-bottom: var(--safe-area-bottom);
+    overflow-x: hidden;
+  }
+
+  /* Glassmorphism Utility */
+  .glass {
+    background: color-mix(in oklch, var(--card) 70%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid color-mix(in oklch, var(--border) 30%, transparent);
+  }
+
+  /* Premium Button Active State */
+  .btn-active-scale:active {
+    transform: scale(0.96);
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+
+  code, pre {
+    @apply font-mono;
+  }
+
+  ::selection {
+    @apply bg-primary/20 text-primary;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/20 rounded-full hover:bg-muted-foreground/40;
+  }
+}
