@@ -224,8 +224,8 @@ export default function Layout() {
                   <div className={`p-2 rounded-2xl transition-all ${isActive ? 'bg-primary/10 shadow-inner' : ''}`}>
                     <item.icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px]' : ''}`} />
                   </div>
-                  <span className={`text-[10px] font-bold tracking-tight ${isActive ? 'opacity-100' : 'opacity-60'}`}>
-                    {item.label.split(' ')[0]}
+                  <span className={`text-[9px] text-center leading-[1.1] font-bold tracking-tight ${isActive ? 'opacity-100' : 'opacity-60'}`}>
+                    {item.label === 'Tableau de bord' ? 'Accueil' : item.label.replace('Enquête ', '')}
                   </span>
                 </>
               )}
@@ -244,8 +244,8 @@ export default function Layout() {
                 <div className={`p-2 rounded-2xl transition-all ${isActive ? 'bg-primary/10 shadow-inner' : ''}`}>
                   <History className={`w-5 h-5 ${isActive ? 'stroke-[2.5px]' : ''}`} />
                 </div>
-                <span className={`text-[10px] font-bold tracking-tight ${isActive ? 'opacity-100' : 'opacity-60'}`}>
-                  Suivi
+                <span className={`text-[9px] text-center leading-[1.1] font-bold tracking-tight ${isActive ? 'opacity-100' : 'opacity-60'}`}>
+                  Historique
                 </span>
               </>
             )}
