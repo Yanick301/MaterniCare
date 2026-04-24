@@ -165,7 +165,7 @@ export default function QuestionnairePartage() {
       };
       const data = toSnakeCase(r as unknown as Record<string, unknown>);
       data.user_id = config.userId;
-      const { error } = await supabase.from('surveys_sfe').upsert(data);
+      const { error } = await supabase.from('surveys_sfe').insert(data);
       if (error) throw error;
       setSubmitted(true);
     } catch (err: unknown) {
