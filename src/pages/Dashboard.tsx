@@ -92,6 +92,9 @@ export default function Dashboard() {
             <Button size="sm" variant="outline" onClick={() => navigate(ROUTE_PATHS.FORMULAIRE_PATIENTE)} className="gap-2">
               <Heart className="w-4 h-4" /> Patiente
             </Button>
+            <Button size="sm" variant="outline" onClick={() => navigate(ROUTE_PATHS.FORMULAIRE_PATIENTE_HTA)} className="gap-2 border-primary/20 text-primary hover:bg-primary/5">
+              <Activity className="w-4 h-4" /> Suivi HTA
+            </Button>
           </div>
         </div>
       </motion.div>

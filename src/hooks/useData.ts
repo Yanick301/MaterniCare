@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { ReponseSFE, ReponsePatiente, User } from '@/lib/index';
+import type { ReponseSFE, ReponsePatiente, ReponsePatienteHTA, User } from '@/lib/index';
 import { supabase } from '@/lib/supabase';
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 
@@ -152,6 +152,55 @@ export function usePatientesData() {
   const remove = useCallback(async (id: string) => {
     const { error } = await supabase
       .from('surveys_patientes')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    fetchResponses();
+  }, [fetchResponses]);
+
+  return { responses, save, remove, loading, refresh: fetchResponses };
+}
+
+// ─── usePatientesHTAData ──────────────────────────────────────────
+export function usePatientesHTAData() {
+  const [responses, setResponses] = useState<ReponsePatienteHTA[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchResponses = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('surveys_patientes_hta')
+      .select('*')
+      .order('date', { ascending: false });
+
+    if (!error && data) {
+      setResponses(data.map(r => toCamelCase(r)) as unknown as ReponsePatienteHTA[]);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchResponses();
+  }, [fetchResponses]);
+
+  const save = useCallback(async (r: ReponsePatienteHTA) => {
+    const data = toSnakeCase(r as unknown as Record<string, unknown>);
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData.session?.user?.id) {
+      data.user_id = sessionData.session.user.id;
+    }
+    const { error } = await supabase
+      .from('surveys_patientes_hta')
+      .upsert(data);
+
+    if (error) throw error;
+    fetchResponses();
+  }, [fetchResponses]);
+
+  const remove = useCallback(async (id: string) => {
+    const { error } = await supabase
+      .from('surveys_patientes_hta')
       .delete()
       .eq('id', id);
 

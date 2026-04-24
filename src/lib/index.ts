@@ -7,6 +7,7 @@ export const ROUTE_PATHS = {
   DASHBOARD: '/dashboard',
   FORMULAIRE_SFE: '/formulaire/sfe',
   FORMULAIRE_PATIENTE: '/formulaire/patiente',
+  FORMULAIRE_PATIENTE_HTA: '/formulaire/patiente-hta',
   STATISTIQUES: '/statistiques',
   HISTORIQUE: '/historique',
 };
@@ -110,8 +111,46 @@ export interface ReponsePatiente {
   alerte: boolean;
 }
 
+export interface ReponsePatienteHTA {
+  id: string;
+  date: string;
+  sageFemme: string;
+  centre: string;
+  nomPatiente: string;
+  prenomPatiente: string;
+  telephonePatiente: string;
+  q1RoleSf: string;
+  q2TensionElevee: string;
+  q3RisqueComplication: string;
+  q4MesureTa: string;
+  q5NoteResultats: string;
+  q6RdvRapproches: string;
+  q7RevenirRapidement: string;
+  q8ExpliqueEtat: string;
+  q9BienSuivie: string;
+  q10Ecoute: string;
+  q11Confiance: string;
+  q12EvalueSuivi: string;
+  q13RoleSfHta: string;
+  q14MesureTaChaqueConsult: string;
+  q15ImportanceBandelette: string;
+  q16BandeletteDetecteComplication: string;
+  q17InsisteBandelette: string;
+  q18SaitPourquoiBandelette: string;
+  q19PourquoiBandelette: string[];
+  q20ComprendExplications: string;
+  q21PoseQuestions: string;
+  q22TensionEleveeGrossesse: string;
+  q23ActionSf: string;
+  q24RegulierementSuivie: string;
+  q25ExamensDemandes: string;
+  q26SignesInhabituels: string[];
+  statut: 'complet' | 'brouillon';
+  alerte: boolean;
+}
+
 export type FormMode = 'patient' | 'registre';
-export type FormType = 'sfe' | 'patiente';
+export type FormType = 'sfe' | 'patiente' | 'patiente_hta';
 
 export interface AlertePreeclampsie {
   patienteId: string;
@@ -187,6 +226,17 @@ export const FEMMES_RISQUE = [
   'Ayant mal suivi la grossesse ou pas du tout',
   'Ayant bien suivi leur grossesse mais n\'ayant pas été suffisamment sensibilisées sur les signes de danger'
 ];
+
+export const Q4_MESURE_TA = ['A chaque consultation', 'Plus fréquemment que d\'habitude', 'Rarement'];
+export const Q12_EVALUE_SUIVI = ['Tres bon', 'Bon', 'Moyen', 'Mauvais'];
+export const Q14_MESURE_TA_CHAQUE_CONSULT = ['Toujours', 'Parfois', 'Jamais'];
+export const Q15_IMPORTANCE_BANDELETTE = ['oui beaucoup', 'un peu', 'Pas du tout'];
+export const Q17_INSISTE_BANDELETTE = ['Toujours.', 'Parfois', 'Jamais.'];
+export const Q19_POURQUOI_BANDELETTE = ['Detecter le sucre', 'Detecter les proteines.', 'Detecter une maladie.', 'Je ne sais pas exactement'];
+export const Q23_ACTION_SF = ['Donner un traitement', 'Referer vers un medecin', 'Rien'];
+export const Q25_EXAMENS_DEMANDES = ['oui', 'toujours', 'Parfois', 'Jamais'];
+export const Q26_SIGNES_INHABITUELS = ['Aller au à l\'hôpital', 'Automédication'];
+
 
 export const CENTRES = [
   'Hôpital de Zone de Pobè',

@@ -241,3 +241,65 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- 6. Table des Enquêtes Patientes HTA (Nouvelle évaluation)
+CREATE TABLE IF NOT EXISTS public.surveys_patientes_hta (
+  id TEXT PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) DEFAULT auth.uid(),
+  date TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+  sage_femme TEXT,
+  centre TEXT,
+  nom_patiente TEXT,
+  prenom_patiente TEXT,
+  telephone_patiente TEXT,
+  
+  -- Réponses aux 26 questions
+  q1_role_sf TEXT,
+  q2_tension_elevee TEXT,
+  q3_risque_complication TEXT,
+  q4_mesure_ta TEXT,
+  q5_note_resultats TEXT,
+  q6_rdv_rapproches TEXT,
+  q7_revenir_rapidement TEXT,
+  q8_explique_etat TEXT,
+  q9_bien_suivie TEXT,
+  q10_ecoute TEXT,
+  q11_confiance TEXT,
+  q12_evalue_suivi TEXT,
+  q13_role_sf_hta TEXT,
+  q14_mesure_ta_chaque_consult TEXT,
+  q15_importance_bandelette TEXT,
+  q16_bandelette_detecte_complication TEXT,
+  q17_insiste_bandelette TEXT,
+  q18_sait_pourquoi_bandelette TEXT,
+  q19_pourquoi_bandelette TEXT[],
+  q20_comprend_explications TEXT,
+  q21_pose_questions TEXT,
+  q22_tension_elevee_grossesse TEXT,
+  q23_action_sf TEXT,
+  q24_regulierement_suivie TEXT,
+  q25_examens_demandes TEXT,
+  q26_signes_inhabituels TEXT[],
+  
+  statut TEXT DEFAULT 'brouillon',
+  alerte BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.surveys_patientes_hta ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Les experts voient les données HTA de leurs propres patientes" ON public.surveys_patientes_hta;
+CREATE POLICY "Les experts voient les données HTA de leurs propres patientes" 
+ON public.surveys_patientes_hta FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Les experts peuvent insérer des données HTA patientes" ON public.surveys_patientes_hta;
+CREATE POLICY "Les experts peuvent insérer des données HTA patientes" 
+ON public.surveys_patientes_hta FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "Les experts peuvent modifier les données HTA de leurs patientes" ON public.surveys_patientes_hta;
+CREATE POLICY "Les experts peuvent modifier les données HTA de leurs patientes" 
+ON public.surveys_patientes_hta FOR UPDATE USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Les experts peuvent supprimer les données HTA de leurs patientes" ON public.surveys_patientes_hta;
+CREATE POLICY "Les experts peuvent supprimer les données HTA de leurs patientes" 
+ON public.surveys_patientes_hta FOR DELETE USING (auth.uid() = user_id);

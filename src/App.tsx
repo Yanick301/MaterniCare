@@ -8,6 +8,7 @@ import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
 import FormulaireSFE from '@/pages/FormulaireSFE';
 import FormulairePatiente from '@/pages/FormulairePatiente';
+import FormulairePatienteHTA from '@/pages/FormulairePatienteHTA';
 import Statistiques from '@/pages/Statistiques';
 import Historique from '@/pages/Historique';
 
@@ -69,6 +70,7 @@ export default function App() {
           <Route path={ROUTE_PATHS.DASHBOARD} element={<Dashboard />} />
           <Route path={ROUTE_PATHS.FORMULAIRE_SFE} element={<FormulaireSFE />} />
           <Route path={ROUTE_PATHS.FORMULAIRE_PATIENTE} element={<FormulairePatiente />} />
+          <Route path={ROUTE_PATHS.FORMULAIRE_PATIENTE_HTA} element={<FormulairePatienteHTA />} />
           <Route path={ROUTE_PATHS.STATISTIQUES} element={<Statistiques />} />
           <Route path={ROUTE_PATHS.HISTORIQUE} element={<Historique />} />
         </Route>
