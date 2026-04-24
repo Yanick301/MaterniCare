@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Save, CheckCircle, AlertTriangle, Zap, User, ArrowLeft, Share2, Copy } from 'lucide-react';
+import { ChevronRight, Save, CheckCircle, Zap, User, ArrowLeft, Share2, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -10,17 +10,20 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { useSFEData, useAuth, createSharedLink } from '@/hooks/useData';
-import { generateId, detectAlertePatiente, ROUTE_PATHS, EXPERIENCES, FACTEURS_RISQUE, SIGNES_CLINIQUES, FREQ_CONTROLE_TA, ELEMENTS_HYPERTENDUE, CONDUITE_HTA, ANTIHYPERTENSIFS, CONSEILS_HYPERTENSION, PROPORTIONS_GUERISON, FEMMES_RISQUE, CENTRES } from '@/lib/index';
+import {
+  generateId, ROUTE_PATHS, EXPERIENCES, FACTEURS_RISQUE, SIGNES_CLINIQUES, FREQ_CONTROLE_TA,
+  ELEMENTS_HYPERTENDUE, CONDUITE_HTA, ANTIHYPERTENSIFS, CONSEILS_HYPERTENSION,
+  CENTRES, DIFFICULTES_SFE, SIGNES_DANGER_SFE
+} from '@/lib/index';
 import type { ReponseSFE, FormMode } from '@/lib/index';
 
 const SECTIONS = [
   { id: 1, titre: 'Données sociodémographiques', icon: '👤' },
-  { id: 2, titre: 'Connaissances médicales', icon: '🧠' },
-  { id: 3, titre: 'Pratiques professionnelles', icon: '🩺' },
-  { id: 4, titre: 'Évolution & pronostic', icon: '📈' },
+  { id: 2, titre: 'Connaissances des sages-femmes', icon: '🧠' },
+  { id: 3, titre: 'Pratique des sages-femmes', icon: '🩺' },
 ];
 
-function CheckboxGroup({ options, selected, onChange, other, onOther, otherLabel = 'Autre' }: {
+function CheckboxGroup({ options, selected, onChange, other, onOther, otherLabel = 'Autres' }: {
   options: string[]; selected: string[]; onChange: (v: string[]) => void;
   other?: string; onOther?: (v: string) => void; otherLabel?: string;
 }) {
@@ -41,18 +44,19 @@ function CheckboxGroup({ options, selected, onChange, other, onOther, otherLabel
           <span className="text-sm text-foreground">{opt}</span>
         </label>
       ))}
-      {onOther && (
-        <div className="mt-2">
-          <Input placeholder={`${otherLabel} (précisez)`} value={other || ''} onChange={e => onOther(e.target.value)} className="h-9 text-sm" />
+      {onOther !== undefined && (
+        <div className="mt-2 text-sm text-muted-foreground flex items-center gap-2 px-1">
+          <span>{otherLabel} :</span>
+          <Input placeholder="Précisez..." value={other || ''} onChange={e => onOther(e.target.value)} className="h-9 text-sm w-full" />
         </div>
       )}
     </div>
   );
 }
 
-function RadioGroup({ options, value, onChange, other, onOther }: {
+function RadioGroup({ options, value, onChange, other, onOther, otherLabel = 'Autres' }: {
   options: string[]; value: string; onChange: (v: string) => void;
-  other?: string; onOther?: (v: string) => void;
+  other?: string; onOther?: (v: string) => void; otherLabel?: string;
 }) {
   return (
     <div className="space-y-2">
@@ -68,8 +72,11 @@ function RadioGroup({ options, value, onChange, other, onOther }: {
           <span className="text-sm text-foreground">{opt}</span>
         </label>
       ))}
-      {onOther && (
-        <Input placeholder="Autre (précisez)" value={other || ''} onChange={e => onOther(e.target.value)} className="h-9 text-sm mt-2" />
+      {onOther !== undefined && (
+        <div className="mt-2 text-sm text-muted-foreground flex items-center gap-2 px-1">
+          <span>{otherLabel}: </span>
+          <Input placeholder="Précisez..." value={other || ''} onChange={e => onOther(e.target.value)} className="h-9 text-sm" />
+        </div>
       )}
     </div>
   );
@@ -85,12 +92,12 @@ const emptyForm = (): Partial<ReponseSFE> => ({
   surveillanceMvtFoetaux: false, elementsHypertendue: [], autreElementsHypertendue: '',
   conduiteHtaGrossesse: [], autreConduiteHta: '',
   antihypertensifs: [], autreAntihypertensifs: '',
-  casReference: '', conseilsHypertendue: [], difficultesHta: false,
-  detailsDifficultes: '', ameliorationsProposees: '',
-  collaborationRelais: false, commentCollaboration: '',
-  contreRefRenvoyees: false, pourquoiNonContreRef: '',
-  proportionGuerison: '', autreProportionGuerison: '',
-  femmesRisqueComplications: [],
+  casReference: '', 
+  informeSignesDanger: false, signesDangerExpliques: [],
+  conseilsHypertendue: [], autreConseilsHypertendue: '',
+  difficultesHta: false, difficultesRencontrees: [], autreDifficultes: '',
+  ameliorationsProposees: '', collaborationRelais: false, commentCollaboration: '',
+  contreRefRenvoyees: false, pourquoiNonContreRef: '', laboFonctionnel: false
 });
 
 export default function FormulaireSFE() {
@@ -107,7 +114,7 @@ export default function FormulaireSFE() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const up = (field: string, value: unknown) => setForm(f => ({ ...f, [field]: value }));
+  const up = (field: keyof ReponseSFE, value: unknown) => setForm(f => ({ ...f, [field]: value }));
 
   const handleSave = async (statut: 'complet' | 'brouillon') => {
     setLoading(true);
@@ -126,7 +133,6 @@ export default function FormulaireSFE() {
       setSaved(true);
       setTimeout(() => navigate(ROUTE_PATHS.HISTORIQUE), 1500);
     } catch (err: any) {
-      console.error('Save failed:', err);
       toast.error(`Erreur lors de l'enregistrement : ${err.message || 'Problème de connexion'}`);
     } finally {
       setLoading(false);
@@ -160,13 +166,12 @@ export default function FormulaireSFE() {
     return (
       <div className="p-4 lg:p-6">
         <div className="max-w-2xl mx-auto">
-          <Button variant="ghost" size="sm" onClick={() => navigate(ROUTE_PATHS.DASHBOARD)} className="mb-4 gap-2 text-muted-foreground">
+          <Button variant="ghost" size="sm" onClick={() => navigate(ROUTE_PATHS.DASHBOARD)} className="mb-4 gap-2 text-muted-foreground mt-4">
             <ArrowLeft className="w-4 h-4" /> Retour
           </Button>
-          <h1 className="text-2xl font-bold text-foreground mb-1">Enquête Sage-Femme</h1>
-          <p className="text-muted-foreground mb-6 text-sm">Choisissez le mode de saisie</p>
+          <h1 className="text-2xl font-bold text-foreground mb-1 mt-4">Questionnaire aux SFE</h1>
+          <p className="text-muted-foreground mb-8 text-sm">Choisissez le mode de saisie</p>
 
-          {/* Bouton Partager */}
           <div className="mb-6 p-4 bg-primary/5 border border-primary/20 rounded-2xl">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -174,7 +179,7 @@ export default function FormulaireSFE() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-foreground">Partager le questionnaire</p>
-                <p className="text-xs text-muted-foreground">Générez un lien à envoyer à une sage-femme</p>
+                <p className="text-xs text-muted-foreground">Générez un lien pour collecter les réponses d'autres confrères</p>
               </div>
               <Button size="sm" onClick={handleShare} className="gap-2 shrink-0">
                 <Share2 className="w-3 h-3" /> Partager
@@ -192,25 +197,25 @@ export default function FormulaireSFE() {
 
           <div className="grid sm:grid-cols-2 gap-4">
             <motion.div whileHover={{ y: -4 }} whileTap={{ scale: 0.98 }}>
-              <Card onClick={() => setMode('patient')} className="cursor-pointer border-2 hover:border-primary transition-all hover:shadow-lg hover:shadow-primary/10">
+              <Card onClick={() => setMode('patient')} className="cursor-pointer border-2 hover:border-primary transition-all hover:shadow-lg hover:shadow-primary/10 h-full">
                 <CardContent className="p-6 text-center space-y-3">
                   <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto">
                     <User className="w-7 h-7 text-primary" />
                   </div>
-                  <h3 className="font-bold text-foreground text-lg">Mode Patient</h3>
-                  <p className="text-sm text-muted-foreground">Remplissage en présence de la sage-femme. Interface guidée, étape par étape.</p>
+                  <h3 className="font-bold text-foreground text-lg">Question par question</h3>
+                  <p className="text-sm text-muted-foreground">Remplissage guidé et progressif, idéal pour s'auto-évaluer avec attention.</p>
                   <Badge className="bg-primary/10 text-primary border-primary/20 text-xs">Recommandé</Badge>
                 </CardContent>
               </Card>
             </motion.div>
             <motion.div whileHover={{ y: -4 }} whileTap={{ scale: 0.98 }}>
-              <Card onClick={() => setMode('registre')} className="cursor-pointer border-2 hover:border-primary transition-all hover:shadow-lg hover:shadow-primary/10">
+              <Card onClick={() => setMode('registre')} className="cursor-pointer border-2 hover:border-primary transition-all hover:shadow-lg hover:shadow-primary/10 h-full">
                 <CardContent className="p-6 text-center space-y-3">
                   <div className="w-14 h-14 bg-accent/20 rounded-2xl flex items-center justify-center mx-auto">
                     <Zap className="w-7 h-7 text-accent-foreground" />
                   </div>
-                  <h3 className="font-bold text-foreground text-lg">Mode Registre</h3>
-                  <p className="text-sm text-muted-foreground">Saisie rapide depuis le registre. Formulaire compact, accès direct à tous les champs.</p>
+                  <h3 className="font-bold text-foreground text-lg">Mode Rapide</h3>
+                  <p className="text-sm text-muted-foreground">Accès direct pour saisie multiple et expéditive.</p>
                   <Badge variant="outline" className="text-xs">Saisie accélérée</Badge>
                 </CardContent>
               </Card>
@@ -241,34 +246,32 @@ export default function FormulaireSFE() {
   const renderSection = () => {
     switch (section) {
       case 0: return (
-        <div className="space-y-5">
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Âge (années révolues)</Label>
-              <Input type="number" placeholder="Ex: 35" value={form.age ?? ''} onChange={e => up('age', parseInt(e.target.value) || null)} className="h-11 text-lg" min={18} max={70} />
-            </div>
-            <div className="space-y-2">
-              <Label>Centre / Structure</Label>
-              <select value={centre} onChange={e => setCentre(e.target.value)} className="w-full h-11 border-2 border-input rounded-lg px-3 text-sm bg-background focus:border-primary outline-none transition-colors">
-                <option value="">Sélectionner…</option>
-                {CENTRES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-              {centre === 'Autre' && (
-                <Input placeholder="Nom de votre centre de santé" value={customCentre} onChange={e => setCustomCentre(e.target.value)} className="h-11 border-2 mt-2" />
-              )}
-            </div>
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">Âge (en année révolue)</Label>
+            <Input type="number" placeholder="Ex: 35" value={form.age ?? ''} onChange={e => up('age', parseInt(e.target.value) || null)} className="h-11 text-lg max-w-sm" min={18} max={80} />
           </div>
           <div className="space-y-2">
-            <Label>Années d'expérience professionnelle</Label>
+            <Label className="text-base font-semibold">Centre de santé / Hôpital (Non figurant au Doc original, gardé en interne pour le registre)</Label>
+            <select value={centre} onChange={e => setCentre(e.target.value)} className="w-full h-11 border-2 border-input rounded-lg px-3 text-sm bg-background outline-none">
+              <option value="">Sélectionner…</option>
+              {CENTRES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            {centre === 'Autre' && (
+              <Input placeholder="Nom du centre" value={customCentre} onChange={e => setCustomCentre(e.target.value)} className="h-11 border-2 mt-2" />
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">Nombre d'année d'expérience professionnelle</Label>
             <RadioGroup options={EXPERIENCES} value={form.experiencePro || ''} onChange={v => up('experiencePro', v)} />
           </div>
-          <div className="space-y-3">
-            <Label>Formation sur la prise en charge HTA / Prééclampsie (SONU) ?</Label>
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">Avez-vous déjà reçu une formation sur la prise en charge de la HTA et de la prééclampsie ? (SONU)</Label>
             <RadioGroup options={['Oui', 'Non']} value={form.formationHta ? 'Oui' : form.formationHta === false ? 'Non' : ''} onChange={v => up('formationHta', v === 'Oui')} />
             {form.formationHta && (
-              <div className="space-y-1 mt-2">
-                <Label className="text-sm">Si oui, en quelle année ?</Label>
-                <Input placeholder="Année (ex: 2023)" value={form.anneeFormation || ''} onChange={e => up('anneeFormation', e.target.value)} className="h-10 max-w-xs" maxLength={4} />
+              <div className="mt-2">
+                <Label className="text-sm">Si oui en quelle année ?</Label>
+                <Input placeholder="Année (ex: 2023)" value={form.anneeFormation || ''} onChange={e => up('anneeFormation', e.target.value)} className="h-10 mt-1 max-w-sm" maxLength={4} />
               </div>
             )}
           </div>
@@ -278,24 +281,24 @@ export default function FormulaireSFE() {
       case 1: return (
         <div className="space-y-6">
           <div className="space-y-2">
-            <Label className="text-base font-semibold">4. L'HTA pendant la grossesse se définit par :</Label>
-            <RadioGroup options={['TA ≥140/90 mmHg']} value={form.defHta || ''} onChange={v => up('defHta', v)} other={form.autreDefHta} onOther={v => up('autreDefHta', v)} />
+            <Label className="text-base font-semibold">L'hypertension artérielle pendant la grossesse se définit par :</Label>
+            <RadioGroup options={['TA ≥ 140/90 mmHg']} value={form.defHta || ''} onChange={v => up('defHta', v)} other={form.autreDefHta} onOther={v => up('autreDefHta', v)} otherLabel="Autre" />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">5. La prééclampsie est caractérisée par :</Label>
-            <RadioGroup options={['HTA + protéinurie']} value={form.caracPreeclampsie || ''} onChange={v => up('caracPreeclampsie', v)} other={form.autreCaracPreeclampsie} onOther={v => up('autreCaracPreeclampsie', v)} />
+            <Label className="text-base font-semibold">La prééclampsie est caractérisée par :</Label>
+            <RadioGroup options={['HTA + protéinurie']} value={form.caracPreeclampsie || ''} onChange={v => up('caracPreeclampsie', v)} other={form.autreCaracPreeclampsie} onOther={v => up('autreCaracPreeclampsie', v)} otherLabel="Autre" />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">6. Âge gestationnel d'apparition de la prééclampsie :</Label>
-            <RadioGroup options={['Après 20 semaines d\'aménorrhée']} value={form.ageGestationnel || ''} onChange={v => up('ageGestationnel', v)} other={form.autreAgeGestationnel} onOther={v => up('autreAgeGestationnel', v)} />
+            <Label className="text-base font-semibold">À partir de quel âge gestationnel peut apparaître la prééclampsie :</Label>
+            <RadioGroup options={['Après 20 semaines d\'aménorrhée']} value={form.ageGestationnel || ''} onChange={v => up('ageGestationnel', v)} other={form.autreAgeGestationnel} onOther={v => up('autreAgeGestationnel', v)} otherLabel="Autres" />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">7. Principaux facteurs de risque de la prééclampsie :</Label>
-            <CheckboxGroup options={FACTEURS_RISQUE} selected={form.factRisque || []} onChange={v => up('factRisque', v)} other={form.autreFactRisque} onOther={v => up('autreFactRisque', v)} />
+            <Label className="text-base font-semibold">Quels sont les principaux facteurs de risque de la prééclampsie :</Label>
+            <CheckboxGroup options={FACTEURS_RISQUE} selected={form.factRisque || []} onChange={v => up('factRisque', v)} other={form.autreFactRisque} onOther={v => up('autreFactRisque', v)} otherLabel="Autres" />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">8. Signes cliniques évocateurs de prééclampsie :</Label>
-            <CheckboxGroup options={SIGNES_CLINIQUES} selected={form.signesCliniques || []} onChange={v => up('signesCliniques', v)} other={form.autreSignesCliniques} onOther={v => up('autreSignesCliniques', v)} />
+            <Label className="text-base font-semibold">Quels sont les signes cliniques évocateurs de la prééclampsie :</Label>
+            <CheckboxGroup options={SIGNES_CLINIQUES} selected={form.signesCliniques || []} onChange={v => up('signesCliniques', v)} other={form.autreSignesCliniques} onOther={v => up('autreSignesCliniques', v)} otherLabel="Autres" />
           </div>
         </div>
       );
@@ -303,91 +306,88 @@ export default function FormulaireSFE() {
       case 2: return (
         <div className="space-y-6">
           <div className="space-y-2">
-            <Label className="text-base font-semibold">9. Fréquence de contrôle de la TA :</Label>
-            <RadioGroup options={FREQ_CONTROLE_TA} value={form.freqControleTA || ''} onChange={v => up('freqControleTA', v)} other={form.autreFreqControleTA} onOther={v => up('autreFreqControleTA', v)} />
+            <Label className="text-base font-semibold">À quelle fréquence contrôlez-vous la tension artérielle chez les femmes enceintes ?</Label>
+            <RadioGroup options={FREQ_CONTROLE_TA} value={form.freqControleTA || ''} onChange={v => up('freqControleTA', v)} other={form.autreFreqControleTA} onOther={v => up('autreFreqControleTA', v)} otherLabel="Autres" />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">10. Mesure systématique de la TA :</Label>
+            <Label className="text-base font-semibold">Mesurez-vous systématiquement la TA chez les femmes enceintes ?</Label>
             <RadioGroup options={['Toujours', 'Parfois', 'Jamais']} value={form.mesureSystematiqueTA || ''} onChange={v => up('mesureSystematiqueTA', v)} />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">11. Recherche de la protéinurie dans le bilan prénatal :</Label>
-            <RadioGroup options={['Toujours', 'Parfois', 'Jamais']} value={form.recherchProteinurie || ''} onChange={v => up('recherchProteinurie', v)} other={form.autreRecherchProteinurie} onOther={v => up('autreRecherchProteinurie', v)} />
+            <Label className="text-base font-semibold">La recherche de la protéinurie fait partie du bilan prénatal</Label>
+            <RadioGroup options={['Toujours', 'Parfois', 'Jamais']} value={form.recherchProteinurie || ''} onChange={v => up('recherchProteinurie', v)} other={form.autreRecherchProteinurie} onOther={v => up('autreRecherchProteinurie', v)} otherLabel="Autres" />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">12. Surveillance des mouvements fœtaux ?</Label>
+            <Label className="text-base font-semibold">Surveillez-vous les mouvements fœtaux ?</Label>
             <RadioGroup options={['Oui', 'Non']} value={form.surveillanceMvtFoetaux ? 'Oui' : form.surveillanceMvtFoetaux === false ? 'Non' : ''} onChange={v => up('surveillanceMvtFoetaux', v === 'Oui')} />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">13. Éléments à rechercher chez une femme hypertendue :</Label>
-            <CheckboxGroup options={ELEMENTS_HYPERTENDUE} selected={form.elementsHypertendue || []} onChange={v => up('elementsHypertendue', v)} other={form.autreElementsHypertendue} onOther={v => up('autreElementsHypertendue', v)} />
+            <Label className="text-base font-semibold">Éléments à rechercher chez une femme hypertendue :</Label>
+            <CheckboxGroup options={ELEMENTS_HYPERTENDUE} selected={form.elementsHypertendue || []} onChange={v => up('elementsHypertendue', v)} other={form.autreElementsHypertendue} onOther={v => up('autreElementsHypertendue', v)} otherLabel="Autres" />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">14. Conduite à tenir en cas d'HTA :</Label>
-            <CheckboxGroup options={CONDUITE_HTA} selected={form.conduiteHtaGrossesse || []} onChange={v => up('conduiteHtaGrossesse', v)} other={form.autreConduiteHta} onOther={v => up('autreConduiteHta', v)} />
+            <Label className="text-base font-semibold">Conduite à tenir en cas d'HTA chez une femme enceinte :</Label>
+            <CheckboxGroup options={CONDUITE_HTA} selected={form.conduiteHtaGrossesse || []} onChange={v => up('conduiteHtaGrossesse', v)} other={form.autreConduiteHta} onOther={v => up('autreConduiteHta', v)} otherLabel="Autres" />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">15. Antihypertensifs utilisables pendant la grossesse :</Label>
-            <CheckboxGroup options={ANTIHYPERTENSIFS} selected={form.antihypertensifs || []} onChange={v => up('antihypertensifs', v)} other={form.autreAntihypertensifs} onOther={v => up('autreAntihypertensifs', v)} />
+            <Label className="text-base font-semibold">Antihypertensifs utilisables pendant la grossesse :</Label>
+            <CheckboxGroup options={ANTIHYPERTENSIFS} selected={form.antihypertensifs || []} onChange={v => up('antihypertensifs', v)} other={form.autreAntihypertensifs} onOther={v => up('autreAntihypertensifs', v)} otherLabel="Autres" />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">16. Dans quel cas décidez-vous de référer une patiente ?</Label>
-            <Textarea placeholder="Décrivez les critères de référence…" value={form.casReference || ''} onChange={e => up('casReference', e.target.value)} className="min-h-20 resize-none" />
+            <Label className="text-base font-semibold">Dans quel cas décidez vous de référer une patiente (considérant que vous travaillez dans un centre périphérique) ?</Label>
+            <CheckboxGroup options={['HTA sévère', 'Signe de prééclampsie sévère']} selected={form.casReference ? form.casReference.split(', ') : []} onChange={v => up('casReference', v.join(', '))} other={form.casReference && !['HTA sévère', 'Signe de prééclampsie sévère'].includes(form.casReference) ? form.casReference : ''} onOther={v => up('casReference', v)} otherLabel="Autres" />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">18. Conseils aux femmes enceintes hypertendues :</Label>
-            <CheckboxGroup options={CONSEILS_HYPERTENSION} selected={form.conseilsHypertendue || []} onChange={v => up('conseilsHypertendue', v)} />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-base font-semibold">19. Difficultés dans la surveillance de l'HTA ?</Label>
-            <RadioGroup options={['Oui', 'Non']} value={form.difficultesHta ? 'Oui' : form.difficultesHta === false ? 'Non' : ''} onChange={v => up('difficultesHta', v === 'Oui')} />
-            {form.difficultesHta && (
-              <Textarea placeholder="Décrivez les difficultés rencontrées…" value={form.detailsDifficultes || ''} onChange={e => up('detailsDifficultes', e.target.value)} className="min-h-16 resize-none mt-2" />
+            <Label className="text-base font-semibold">Informez-vous les femmes enceintes sur les signes de danger de la prééclampsie ?</Label>
+            <RadioGroup options={['Oui', 'Non']} value={form.informeSignesDanger ? 'Oui' : form.informeSignesDanger === false ? 'Non' : ''} onChange={v => up('informeSignesDanger', v === 'Oui')} />
+            {form.informeSignesDanger && (
+              <div className="mt-2">
+                <Label className="text-sm">Si oui quels sont ces signes de danger ?</Label>
+                <CheckboxGroup options={SIGNES_DANGER_SFE} selected={form.signesDangerExpliques || []} onChange={v => up('signesDangerExpliques', v)} />
+              </div>
             )}
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">21. Améliorations proposées :</Label>
+            <Label className="text-base font-semibold">Quels conseils donnez-vous pour femmes enceintes hypertendues ?</Label>
+            <CheckboxGroup options={CONSEILS_HYPERTENSION} selected={form.conseilsHypertendue || []} onChange={v => up('conseilsHypertendue', v)} other={form.autreConseilsHypertendue} onOther={v => up('autreConseilsHypertendue', v)} otherLabel="Autres" />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">Rencontrez-vous des difficultés dans la surveillance et la prise en charge de l'HTA et de la prééclampsie ?</Label>
+            <RadioGroup options={['Oui', 'Non']} value={form.difficultesHta ? 'Oui' : form.difficultesHta === false ? 'Non' : ''} onChange={v => up('difficultesHta', v === 'Oui')} />
+            {form.difficultesHta && (
+              <div className="mt-2">
+                <Label className="text-sm">Si oui, lesquelles ?</Label>
+                <CheckboxGroup options={DIFFICULTES_SFE} selected={form.difficultesRencontrees || []} onChange={v => up('difficultesRencontrees', v)} other={form.autreDifficultes} onOther={v => up('autreDifficultes', v)} otherLabel="Autres" />
+              </div>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">Quelles améliorations proposez-vous pour une meilleure prise en charge de l'HTA et de la prééclampsie chez la femme enceinte ?</Label>
             <Textarea placeholder="Vos suggestions…" value={form.ameliorationsProposees || ''} onChange={e => up('ameliorationsProposees', e.target.value)} className="min-h-16 resize-none" />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">22. Collaboration avec les relais communautaires ?</Label>
+            <Label className="text-base font-semibold">Collaborez-vous avec les relais communautaires dans le suivi des gestantes hypertendues prises en charge?</Label>
             <RadioGroup options={['Oui', 'Non']} value={form.collaborationRelais ? 'Oui' : form.collaborationRelais === false ? 'Non' : ''} onChange={v => up('collaborationRelais', v === 'Oui')} />
             {form.collaborationRelais && (
-              <Textarea placeholder="Si oui, comment ?" value={form.commentCollaboration || ''} onChange={e => up('commentCollaboration', e.target.value)} className="min-h-16 resize-none mt-2" />
+              <div className="mt-2">
+                <Label className="text-sm">Si oui, comment ?</Label>
+                <Textarea value={form.commentCollaboration || ''} onChange={e => up('commentCollaboration', e.target.value)} className="min-h-16 resize-none" />
+              </div>
             )}
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">23. Les fiches de contre-référence sont-elles renvoyées ?</Label>
+            <Label className="text-base font-semibold">Suite à une référence en cas d’HTA, les fiches de contre-référence sont-elles renvoyées vers les centres ayant référé ?</Label>
             <RadioGroup options={['Oui', 'Non']} value={form.contreRefRenvoyees ? 'Oui' : form.contreRefRenvoyees === false ? 'Non' : ''} onChange={v => up('contreRefRenvoyees', v === 'Oui')} />
             {!form.contreRefRenvoyees && form.contreRefRenvoyees === false && (
-              <Textarea placeholder="Si non, pourquoi ?" value={form.pourquoiNonContreRef || ''} onChange={e => up('pourquoiNonContreRef', e.target.value)} className="min-h-16 resize-none mt-2" />
+              <div className="mt-2">
+                <Label className="text-sm">Si non, pourquoi ?</Label>
+                <Textarea value={form.pourquoiNonContreRef || ''} onChange={e => up('pourquoiNonContreRef', e.target.value)} className="min-h-16 resize-none mt-2" />
+              </div>
             )}
           </div>
-        </div>
-      );
-
-      case 3: return (
-        <div className="space-y-6">
           <div className="space-y-2">
-            <Label className="text-base font-semibold">24. Proportion de guérisons / évolutions favorables :</Label>
-            <RadioGroup options={PROPORTIONS_GUERISON} value={form.proportionGuerison || ''} onChange={v => up('proportionGuerison', v)} other={form.autreProportionGuerison} onOther={v => up('autreProportionGuerison', v)} />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-base font-semibold">25. Femmes ayant plus de risque de complications :</Label>
-            <CheckboxGroup options={FEMMES_RISQUE} selected={form.femmesRisqueComplications || []} onChange={v => up('femmesRisqueComplications', v)} />
-          </div>
-
-          {/* Score de connaissances */}
-          <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
-            <h3 className="font-semibold text-foreground text-sm mb-2 flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-primary" /> Résumé de l'enquête
-            </h3>
-            <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-              <span>Section 1 : {form.experiencePro ? '✅' : '⏳'} Sociodémo</span>
-              <span>Section 2 : {form.defHta ? '✅' : '⏳'} Connaissances</span>
-              <span>Section 3 : {form.freqControleTA ? '✅' : '⏳'} Pratiques</span>
-              <span>Section 4 : {form.proportionGuerison ? '✅' : '⏳'} Évolution</span>
-            </div>
+            <Label className="text-base font-semibold">Le centre dispose-t-il d'un service de laboratoire fonctionnel pour les examens biologiques ?</Label>
+            <RadioGroup options={['Oui', 'Non']} value={form.laboFonctionnel ? 'Oui' : form.laboFonctionnel === false ? 'Non' : ''} onChange={v => up('laboFonctionnel', v === 'Oui')} />
           </div>
         </div>
       );
@@ -417,7 +417,6 @@ export default function FormulaireSFE() {
         </div>
       </div>
 
-      {/* Stepper */}
       <div className="flex gap-2 mb-5 overflow-x-auto pb-1 no-scrollbar">
         {SECTIONS.map((s, i) => (
           <button 
@@ -454,7 +453,6 @@ export default function FormulaireSFE() {
         </motion.div>
       </AnimatePresence>
 
-      {/* Sticky Bottom Actions */}
       <div className="fixed bottom-0 left-0 right-0 lg:left-64 lg:bottom-0 p-4 pb-[calc(var(--safe-area-bottom)+80px)] lg:pb-6 glass border-t border-border/50 z-20">
         <div className="max-w-3xl mx-auto flex gap-3">
           <Button 

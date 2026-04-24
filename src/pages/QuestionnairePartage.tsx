@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CheckCircle, AlertTriangle, Heart, ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
+import { CheckCircle, AlertTriangle, ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -14,11 +14,10 @@ import { getSharedLink } from '@/hooks/useData';
 import {
   generateId, EXPERIENCES, FACTEURS_RISQUE, SIGNES_CLINIQUES, FREQ_CONTROLE_TA,
   ELEMENTS_HYPERTENDUE, CONDUITE_HTA, ANTIHYPERTENSIFS, CONSEILS_HYPERTENSION,
-  PROPORTIONS_GUERISON, FEMMES_RISQUE, CENTRES,
+  CENTRES, DIFFICULTES_SFE, SIGNES_DANGER_SFE
 } from '@/lib/index';
 import type { ReponseSFE } from '@/lib/index';
 
-// ─── Shared link config ──────────────────────────────────────
 interface ShareConfig {
   id: string;
   senderName: string;
@@ -30,14 +29,12 @@ interface ShareConfig {
 }
 
 const SECTIONS = [
-  { id: 1, titre: 'Sociodémographiques', icon: '👤' },
-  { id: 2, titre: 'Connaissances', icon: '🧠' },
-  { id: 3, titre: 'Pratiques', icon: '🩺' },
-  { id: 4, titre: 'Évolution', icon: '📈' },
+  { id: 1, titre: 'Données sociodémographiques', icon: '👤' },
+  { id: 2, titre: 'Connaissances des sages-femmes', icon: '🧠' },
+  { id: 3, titre: 'Pratique des sages-femmes', icon: '🩺' },
 ];
 
-// ─── Reusable form components ────────────────────────────────
-function CheckboxGroup({ options, selected, onChange, other, onOther, otherLabel = 'Autre' }: {
+function CheckboxGroup({ options, selected, onChange, other, onOther, otherLabel = 'Autres' }: {
   options: string[]; selected: string[]; onChange: (v: string[]) => void;
   other?: string; onOther?: (v: string) => void; otherLabel?: string;
 }) {
@@ -47,8 +44,8 @@ function CheckboxGroup({ options, selected, onChange, other, onOther, otherLabel
   return (
     <div className="space-y-2">
       {options.map(opt => (
-        <label
-          key={opt}
+        <label 
+          key={opt} 
           onClick={() => toggle(opt)}
           className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all select-none ${selected.includes(opt) ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40 hover:bg-secondary/50'}`}
         >
@@ -58,24 +55,25 @@ function CheckboxGroup({ options, selected, onChange, other, onOther, otherLabel
           <span className="text-sm text-foreground">{opt}</span>
         </label>
       ))}
-      {onOther && (
-        <div className="mt-2">
-          <Input placeholder={`${otherLabel} (précisez)`} value={other || ''} onChange={e => onOther(e.target.value)} className="h-9 text-sm" />
+      {onOther !== undefined && (
+        <div className="mt-2 text-sm text-muted-foreground flex items-center gap-2 px-1">
+          <span>{otherLabel} :</span>
+          <Input placeholder="Précisez..." value={other || ''} onChange={e => onOther(e.target.value)} className="h-9 text-sm w-full" />
         </div>
       )}
     </div>
   );
 }
 
-function RadioGroup({ options, value, onChange, other, onOther }: {
+function RadioGroup({ options, value, onChange, other, onOther, otherLabel = 'Autres' }: {
   options: string[]; value: string; onChange: (v: string) => void;
-  other?: string; onOther?: (v: string) => void;
+  other?: string; onOther?: (v: string) => void; otherLabel?: string;
 }) {
   return (
     <div className="space-y-2">
       {options.map(opt => (
-        <label
-          key={opt}
+        <label 
+          key={opt} 
           onClick={() => onChange(opt)}
           className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all select-none ${value === opt ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40 hover:bg-secondary/50'}`}
         >
@@ -85,8 +83,11 @@ function RadioGroup({ options, value, onChange, other, onOther }: {
           <span className="text-sm text-foreground">{opt}</span>
         </label>
       ))}
-      {onOther && (
-        <Input placeholder="Autre (précisez)" value={other || ''} onChange={e => onOther(e.target.value)} className="h-9 text-sm mt-2" />
+      {onOther !== undefined && (
+        <div className="mt-2 text-sm text-muted-foreground flex items-center gap-2 px-1">
+          <span>{otherLabel}: </span>
+          <Input placeholder="Précisez..." value={other || ''} onChange={e => onOther(e.target.value)} className="h-9 text-sm" />
+        </div>
       )}
     </div>
   );
@@ -102,15 +103,14 @@ const emptyForm = (): Partial<ReponseSFE> => ({
   surveillanceMvtFoetaux: false, elementsHypertendue: [], autreElementsHypertendue: '',
   conduiteHtaGrossesse: [], autreConduiteHta: '',
   antihypertensifs: [], autreAntihypertensifs: '',
-  casReference: '', conseilsHypertendue: [], difficultesHta: false,
-  detailsDifficultes: '', ameliorationsProposees: '',
-  collaborationRelais: false, commentCollaboration: '',
-  contreRefRenvoyees: false, pourquoiNonContreRef: '',
-  proportionGuerison: '', autreProportionGuerison: '',
-  femmesRisqueComplications: [],
+  casReference: '', 
+  informeSignesDanger: false, signesDangerExpliques: [],
+  conseilsHypertendue: [], autreConseilsHypertendue: '',
+  difficultesHta: false, difficultesRencontrees: [], autreDifficultes: '',
+  ameliorationsProposees: '', collaborationRelais: false, commentCollaboration: '',
+  contreRefRenvoyees: false, pourquoiNonContreRef: '', laboFonctionnel: false
 });
 
-// ─── To snake case for supabase ──────────────────────────────
 function toSnakeCase(obj: Record<string, unknown>): Record<string, unknown> {
   const snake: Record<string, unknown> = {};
   for (const key in obj) {
@@ -134,7 +134,7 @@ export default function QuestionnairePartage() {
   const [submitting, setSubmitting] = useState(false);
   const [direction, setDirection] = useState(0);
 
-  const up = (field: string, value: unknown) => setForm(f => ({ ...f, [field]: value }));
+  const up = (field: keyof ReponseSFE, value: unknown) => setForm(f => ({ ...f, [field]: value }));
 
   useEffect(() => {
     if (!shareId) { setNotFound(true); setLoading(false); return; }
@@ -176,7 +176,6 @@ export default function QuestionnairePartage() {
     }
   };
 
-  // ─── Loading ──────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -185,7 +184,6 @@ export default function QuestionnairePartage() {
     );
   }
 
-  // ─── Not found ────────────────────────────────────────────
   if (notFound || !config) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
@@ -200,22 +198,12 @@ export default function QuestionnairePartage() {
     );
   }
 
-  // ─── Success ──────────────────────────────────────────────
   if (submitted) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="w-full max-w-sm"
-        >
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-sm">
           <div className="bg-white rounded-3xl shadow-2xl p-8 text-center space-y-6">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 20, delay: 0.2 }}
-              className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mx-auto"
-            >
+            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 20, delay: 0.2 }} className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
               <CheckCircle className="w-10 h-10 text-emerald-600" />
             </motion.div>
             <div>
@@ -229,41 +217,38 @@ export default function QuestionnairePartage() {
     );
   }
 
-  // ─── Form sections ────────────────────────────────────────
   const isLast = section === SECTIONS.length - 1;
   const progress = ((section + 1) / SECTIONS.length) * 100;
 
   const renderSection = () => {
     switch (section) {
       case 0: return (
-        <div className="space-y-5">
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Âge (années révolues)</Label>
-              <Input type="number" placeholder="Ex: 35" value={form.age ?? ''} onChange={e => up('age', parseInt(e.target.value) || null)} className="h-11 text-lg" min={18} max={70} />
-            </div>
-            <div className="space-y-2">
-              <Label>Centre / Structure</Label>
-              <select value={centre} onChange={e => setCentre(e.target.value)} className="w-full h-11 border-2 border-input rounded-lg px-3 text-sm bg-background focus:border-primary outline-none transition-colors">
-                <option value="">Sélectionner…</option>
-                {CENTRES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-              {centre === 'Autre' && (
-                <Input placeholder="Nom de votre centre de santé" value={customCentre} onChange={e => setCustomCentre(e.target.value)} className="h-11 border-2 mt-2" />
-              )}
-            </div>
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">Âge (en année révolue)</Label>
+            <Input type="number" placeholder="Ex: 35" value={form.age ?? ''} onChange={e => up('age', parseInt(e.target.value) || null)} className="h-11 text-lg max-w-sm" min={18} max={80} />
           </div>
           <div className="space-y-2">
-            <Label>Années d'expérience professionnelle</Label>
+            <Label className="text-base font-semibold">Centre de santé / Hôpital</Label>
+            <select value={centre} onChange={e => setCentre(e.target.value)} className="w-full h-11 border-2 border-input rounded-lg px-3 text-sm bg-background outline-none">
+              <option value="">Sélectionner…</option>
+              {CENTRES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            {centre === 'Autre' && (
+              <Input placeholder="Nom du centre" value={customCentre} onChange={e => setCustomCentre(e.target.value)} className="h-11 border-2 mt-2" />
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">Nombre d'année d'expérience professionnelle</Label>
             <RadioGroup options={EXPERIENCES} value={form.experiencePro || ''} onChange={v => up('experiencePro', v)} />
           </div>
-          <div className="space-y-3">
-            <Label>Formation sur la prise en charge HTA / Prééclampsie (SONU) ?</Label>
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">Avez-vous déjà reçu une formation sur la prise en charge de la HTA et de la prééclampsie ? (SONU)</Label>
             <RadioGroup options={['Oui', 'Non']} value={form.formationHta ? 'Oui' : form.formationHta === false ? 'Non' : ''} onChange={v => up('formationHta', v === 'Oui')} />
             {form.formationHta && (
-              <div className="space-y-1 mt-2">
-                <Label className="text-sm">Si oui, en quelle année ?</Label>
-                <Input placeholder="Année (ex: 2023)" value={form.anneeFormation || ''} onChange={e => up('anneeFormation', e.target.value)} className="h-10 max-w-xs" maxLength={4} />
+              <div className="mt-2">
+                <Label className="text-sm">Si oui en quelle année ?</Label>
+                <Input placeholder="Année (ex: 2023)" value={form.anneeFormation || ''} onChange={e => up('anneeFormation', e.target.value)} className="h-10 mt-1 max-w-sm" maxLength={4} />
               </div>
             )}
           </div>
@@ -273,24 +258,24 @@ export default function QuestionnairePartage() {
       case 1: return (
         <div className="space-y-6">
           <div className="space-y-2">
-            <Label className="text-base font-semibold">L'HTA pendant la grossesse se définit par :</Label>
-            <RadioGroup options={['TA ≥140/90 mmHg']} value={form.defHta || ''} onChange={v => up('defHta', v)} other={form.autreDefHta} onOther={v => up('autreDefHta', v)} />
+            <Label className="text-base font-semibold">L'hypertension artérielle pendant la grossesse se définit par :</Label>
+            <RadioGroup options={['TA ≥ 140/90 mmHg']} value={form.defHta || ''} onChange={v => up('defHta', v)} other={form.autreDefHta} onOther={v => up('autreDefHta', v)} otherLabel="Autre" />
           </div>
           <div className="space-y-2">
             <Label className="text-base font-semibold">La prééclampsie est caractérisée par :</Label>
-            <RadioGroup options={['HTA + protéinurie']} value={form.caracPreeclampsie || ''} onChange={v => up('caracPreeclampsie', v)} other={form.autreCaracPreeclampsie} onOther={v => up('autreCaracPreeclampsie', v)} />
+            <RadioGroup options={['HTA + protéinurie']} value={form.caracPreeclampsie || ''} onChange={v => up('caracPreeclampsie', v)} other={form.autreCaracPreeclampsie} onOther={v => up('autreCaracPreeclampsie', v)} otherLabel="Autre" />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">Âge gestationnel d'apparition de la prééclampsie :</Label>
-            <RadioGroup options={['Après 20 semaines d\'aménorrhée']} value={form.ageGestationnel || ''} onChange={v => up('ageGestationnel', v)} other={form.autreAgeGestationnel} onOther={v => up('autreAgeGestationnel', v)} />
+            <Label className="text-base font-semibold">À partir de quel âge gestationnel peut apparaître la prééclampsie :</Label>
+            <RadioGroup options={['Après 20 semaines d\'aménorrhée']} value={form.ageGestationnel || ''} onChange={v => up('ageGestationnel', v)} other={form.autreAgeGestationnel} onOther={v => up('autreAgeGestationnel', v)} otherLabel="Autres" />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">Principaux facteurs de risque de la prééclampsie :</Label>
-            <CheckboxGroup options={FACTEURS_RISQUE} selected={form.factRisque || []} onChange={v => up('factRisque', v)} other={form.autreFactRisque} onOther={v => up('autreFactRisque', v)} />
+            <Label className="text-base font-semibold">Quels sont les principaux facteurs de risque de la prééclampsie :</Label>
+            <CheckboxGroup options={FACTEURS_RISQUE} selected={form.factRisque || []} onChange={v => up('factRisque', v)} other={form.autreFactRisque} onOther={v => up('autreFactRisque', v)} otherLabel="Autres" />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">Signes cliniques évocateurs de prééclampsie :</Label>
-            <CheckboxGroup options={SIGNES_CLINIQUES} selected={form.signesCliniques || []} onChange={v => up('signesCliniques', v)} other={form.autreSignesCliniques} onOther={v => up('autreSignesCliniques', v)} />
+            <Label className="text-base font-semibold">Quels sont les signes cliniques évocateurs de la prééclampsie :</Label>
+            <CheckboxGroup options={SIGNES_CLINIQUES} selected={form.signesCliniques || []} onChange={v => up('signesCliniques', v)} other={form.autreSignesCliniques} onOther={v => up('autreSignesCliniques', v)} otherLabel="Autres" />
           </div>
         </div>
       );
@@ -298,78 +283,88 @@ export default function QuestionnairePartage() {
       case 2: return (
         <div className="space-y-6">
           <div className="space-y-2">
-            <Label className="text-base font-semibold">Fréquence de contrôle de la TA :</Label>
-            <RadioGroup options={FREQ_CONTROLE_TA} value={form.freqControleTA || ''} onChange={v => up('freqControleTA', v)} other={form.autreFreqControleTA} onOther={v => up('autreFreqControleTA', v)} />
+            <Label className="text-base font-semibold">À quelle fréquence contrôlez-vous la tension artérielle chez les femmes enceintes ?</Label>
+            <RadioGroup options={FREQ_CONTROLE_TA} value={form.freqControleTA || ''} onChange={v => up('freqControleTA', v)} other={form.autreFreqControleTA} onOther={v => up('autreFreqControleTA', v)} otherLabel="Autres" />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">Mesure systématique de la TA :</Label>
+            <Label className="text-base font-semibold">Mesurez-vous systématiquement la TA chez les femmes enceintes ?</Label>
             <RadioGroup options={['Toujours', 'Parfois', 'Jamais']} value={form.mesureSystematiqueTA || ''} onChange={v => up('mesureSystematiqueTA', v)} />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">Recherche de la protéinurie dans le bilan prénatal :</Label>
-            <RadioGroup options={['Toujours', 'Parfois', 'Jamais']} value={form.recherchProteinurie || ''} onChange={v => up('recherchProteinurie', v)} other={form.autreRecherchProteinurie} onOther={v => up('autreRecherchProteinurie', v)} />
+            <Label className="text-base font-semibold">La recherche de la protéinurie fait partie du bilan prénatal</Label>
+            <RadioGroup options={['Toujours', 'Parfois', 'Jamais']} value={form.recherchProteinurie || ''} onChange={v => up('recherchProteinurie', v)} other={form.autreRecherchProteinurie} onOther={v => up('autreRecherchProteinurie', v)} otherLabel="Autres" />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">Surveillance des mouvements fœtaux ?</Label>
+            <Label className="text-base font-semibold">Surveillez-vous les mouvements fœtaux ?</Label>
             <RadioGroup options={['Oui', 'Non']} value={form.surveillanceMvtFoetaux ? 'Oui' : form.surveillanceMvtFoetaux === false ? 'Non' : ''} onChange={v => up('surveillanceMvtFoetaux', v === 'Oui')} />
           </div>
           <div className="space-y-2">
             <Label className="text-base font-semibold">Éléments à rechercher chez une femme hypertendue :</Label>
-            <CheckboxGroup options={ELEMENTS_HYPERTENDUE} selected={form.elementsHypertendue || []} onChange={v => up('elementsHypertendue', v)} other={form.autreElementsHypertendue} onOther={v => up('autreElementsHypertendue', v)} />
+            <CheckboxGroup options={ELEMENTS_HYPERTENDUE} selected={form.elementsHypertendue || []} onChange={v => up('elementsHypertendue', v)} other={form.autreElementsHypertendue} onOther={v => up('autreElementsHypertendue', v)} otherLabel="Autres" />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">Conduite à tenir en cas d'HTA :</Label>
-            <CheckboxGroup options={CONDUITE_HTA} selected={form.conduiteHtaGrossesse || []} onChange={v => up('conduiteHtaGrossesse', v)} other={form.autreConduiteHta} onOther={v => up('autreConduiteHta', v)} />
+            <Label className="text-base font-semibold">Conduite à tenir en cas d'HTA chez une femme enceinte :</Label>
+            <CheckboxGroup options={CONDUITE_HTA} selected={form.conduiteHtaGrossesse || []} onChange={v => up('conduiteHtaGrossesse', v)} other={form.autreConduiteHta} onOther={v => up('autreConduiteHta', v)} otherLabel="Autres" />
           </div>
           <div className="space-y-2">
             <Label className="text-base font-semibold">Antihypertensifs utilisables pendant la grossesse :</Label>
-            <CheckboxGroup options={ANTIHYPERTENSIFS} selected={form.antihypertensifs || []} onChange={v => up('antihypertensifs', v)} other={form.autreAntihypertensifs} onOther={v => up('autreAntihypertensifs', v)} />
+            <CheckboxGroup options={ANTIHYPERTENSIFS} selected={form.antihypertensifs || []} onChange={v => up('antihypertensifs', v)} other={form.autreAntihypertensifs} onOther={v => up('autreAntihypertensifs', v)} otherLabel="Autres" />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">Dans quel cas décidez-vous de référer une patiente ?</Label>
-            <Textarea placeholder="Décrivez les critères de référence…" value={form.casReference || ''} onChange={e => up('casReference', e.target.value)} className="min-h-20 resize-none" />
+            <Label className="text-base font-semibold">Dans quel cas décidez vous de référer une patiente (considérant que vous travaillez dans un centre périphérique) ?</Label>
+            <CheckboxGroup options={['HTA sévère', 'Signe de prééclampsie sévère']} selected={form.casReference ? form.casReference.split(', ') : []} onChange={v => up('casReference', v.join(', '))} other={form.casReference && !['HTA sévère', 'Signe de prééclampsie sévère'].includes(form.casReference) ? form.casReference : ''} onOther={v => up('casReference', v)} otherLabel="Autres" />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">Conseils aux femmes enceintes hypertendues :</Label>
-            <CheckboxGroup options={CONSEILS_HYPERTENSION} selected={form.conseilsHypertendue || []} onChange={v => up('conseilsHypertendue', v)} />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-base font-semibold">Difficultés dans la surveillance de l'HTA ?</Label>
-            <RadioGroup options={['Oui', 'Non']} value={form.difficultesHta ? 'Oui' : form.difficultesHta === false ? 'Non' : ''} onChange={v => up('difficultesHta', v === 'Oui')} />
-            {form.difficultesHta && (
-              <Textarea placeholder="Décrivez les difficultés rencontrées…" value={form.detailsDifficultes || ''} onChange={e => up('detailsDifficultes', e.target.value)} className="min-h-16 resize-none mt-2" />
+            <Label className="text-base font-semibold">Informez-vous les femmes enceintes sur les signes de danger de la prééclampsie ?</Label>
+            <RadioGroup options={['Oui', 'Non']} value={form.informeSignesDanger ? 'Oui' : form.informeSignesDanger === false ? 'Non' : ''} onChange={v => up('informeSignesDanger', v === 'Oui')} />
+            {form.informeSignesDanger && (
+              <div className="mt-2">
+                <Label className="text-sm">Si oui quels sont ces signes de danger ?</Label>
+                <CheckboxGroup options={SIGNES_DANGER_SFE} selected={form.signesDangerExpliques || []} onChange={v => up('signesDangerExpliques', v)} />
+              </div>
             )}
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">Améliorations proposées :</Label>
+            <Label className="text-base font-semibold">Quels conseils donnez-vous pour femmes enceintes hypertendues ?</Label>
+            <CheckboxGroup options={CONSEILS_HYPERTENSION} selected={form.conseilsHypertendue || []} onChange={v => up('conseilsHypertendue', v)} other={form.autreConseilsHypertendue} onOther={v => up('autreConseilsHypertendue', v)} otherLabel="Autres" />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">Rencontrez-vous des difficultés dans la surveillance et la prise en charge de l'HTA et de la prééclampsie ?</Label>
+            <RadioGroup options={['Oui', 'Non']} value={form.difficultesHta ? 'Oui' : form.difficultesHta === false ? 'Non' : ''} onChange={v => up('difficultesHta', v === 'Oui')} />
+            {form.difficultesHta && (
+              <div className="mt-2">
+                <Label className="text-sm">Si oui, lesquelles ?</Label>
+                <CheckboxGroup options={DIFFICULTES_SFE} selected={form.difficultesRencontrees || []} onChange={v => up('difficultesRencontrees', v)} other={form.autreDifficultes} onOther={v => up('autreDifficultes', v)} otherLabel="Autres" />
+              </div>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">Quelles améliorations proposez-vous pour une meilleure prise en charge de l'HTA et de la prééclampsie chez la femme enceinte ?</Label>
             <Textarea placeholder="Vos suggestions…" value={form.ameliorationsProposees || ''} onChange={e => up('ameliorationsProposees', e.target.value)} className="min-h-16 resize-none" />
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">Collaboration avec les relais communautaires ?</Label>
+            <Label className="text-base font-semibold">Collaborez-vous avec les relais communautaires dans le suivi des gestantes hypertendues prises en charge?</Label>
             <RadioGroup options={['Oui', 'Non']} value={form.collaborationRelais ? 'Oui' : form.collaborationRelais === false ? 'Non' : ''} onChange={v => up('collaborationRelais', v === 'Oui')} />
             {form.collaborationRelais && (
-              <Textarea placeholder="Si oui, comment ?" value={form.commentCollaboration || ''} onChange={e => up('commentCollaboration', e.target.value)} className="min-h-16 resize-none mt-2" />
+              <div className="mt-2">
+                <Label className="text-sm">Si oui, comment ?</Label>
+                <Textarea value={form.commentCollaboration || ''} onChange={e => up('commentCollaboration', e.target.value)} className="min-h-16 resize-none" />
+              </div>
             )}
           </div>
           <div className="space-y-2">
-            <Label className="text-base font-semibold">Les fiches de contre-référence sont-elles renvoyées ?</Label>
+            <Label className="text-base font-semibold">Suite à une référence en cas d’HTA, les fiches de contre-référence sont-elles renvoyées vers les centres ayant référé ?</Label>
             <RadioGroup options={['Oui', 'Non']} value={form.contreRefRenvoyees ? 'Oui' : form.contreRefRenvoyees === false ? 'Non' : ''} onChange={v => up('contreRefRenvoyees', v === 'Oui')} />
             {!form.contreRefRenvoyees && form.contreRefRenvoyees === false && (
-              <Textarea placeholder="Si non, pourquoi ?" value={form.pourquoiNonContreRef || ''} onChange={e => up('pourquoiNonContreRef', e.target.value)} className="min-h-16 resize-none mt-2" />
+              <div className="mt-2">
+                <Label className="text-sm">Si non, pourquoi ?</Label>
+                <Textarea value={form.pourquoiNonContreRef || ''} onChange={e => up('pourquoiNonContreRef', e.target.value)} className="min-h-16 resize-none mt-2" />
+              </div>
             )}
           </div>
-        </div>
-      );
-
-      case 3: return (
-        <div className="space-y-6">
           <div className="space-y-2">
-            <Label className="text-base font-semibold">Proportion de guérissons / évolutions favorables :</Label>
-            <RadioGroup options={PROPORTIONS_GUERISON} value={form.proportionGuerison || ''} onChange={v => up('proportionGuerison', v)} other={form.autreProportionGuerison} onOther={v => up('autreProportionGuerison', v)} />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-base font-semibold">Femmes ayant plus de risque de complications :</Label>
-            <CheckboxGroup options={FEMMES_RISQUE} selected={form.femmesRisqueComplications || []} onChange={v => up('femmesRisqueComplications', v)} />
+            <Label className="text-base font-semibold">Le centre dispose-t-il d'un service de laboratoire fonctionnel pour les examens biologiques ?</Label>
+            <RadioGroup options={['Oui', 'Non']} value={form.laboFonctionnel ? 'Oui' : form.laboFonctionnel === false ? 'Non' : ''} onChange={v => up('laboFonctionnel', v === 'Oui')} />
           </div>
         </div>
       );
@@ -378,10 +373,8 @@ export default function QuestionnairePartage() {
     }
   };
 
-  // ─── Render ────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
           <img src="/icon.png" alt="MaterniCare" className="w-8 h-8 rounded-lg" />
@@ -397,8 +390,7 @@ export default function QuestionnairePartage() {
       </header>
 
       <div className="max-w-3xl mx-auto p-4 pb-28">
-        {/* Stepper */}
-        <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
+        <div className="flex gap-2 mb-5 overflow-x-auto pb-1 no-scrollbar">
           {SECTIONS.map((s, i) => (
             <button
               key={s.id}
@@ -429,7 +421,6 @@ export default function QuestionnairePartage() {
         </motion.div>
       </div>
 
-      {/* Sticky bottom actions */}
       <div className="fixed bottom-0 left-0 right-0 p-4 pb-[calc(var(--safe-area-bottom,0px)+16px)] bg-white/90 backdrop-blur-lg border-t border-slate-200 z-30">
         <div className="max-w-3xl mx-auto flex gap-3">
           {section > 0 && (

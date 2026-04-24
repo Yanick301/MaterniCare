@@ -78,26 +78,67 @@ export default function Dashboard() {
     <div className="p-4 lg:p-6 space-y-6">
       {/* Entête */}
       <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Tableau de bord</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Bienvenue, <span className="text-primary font-semibold">{user?.prenom} {user?.nom}</span> · {user?.centre}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button size="sm" onClick={() => navigate(ROUTE_PATHS.FORMULAIRE_SFE)} className="gap-2 bg-primary hover:bg-primary/90 shadow-md shadow-primary/25">
-              <ClipboardList className="w-4 h-4" /> Nouvelle enquête SFE
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => navigate(ROUTE_PATHS.FORMULAIRE_PATIENTE)} className="gap-2">
-              <Heart className="w-4 h-4" /> Patiente
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => navigate(ROUTE_PATHS.FORMULAIRE_PATIENTE_HTA)} className="gap-2 border-primary/20 text-primary hover:bg-primary/5">
-              <Activity className="w-4 h-4" /> Suivi HTA
-            </Button>
-          </div>
+        <div className="mb-4">
+          <h1 className="text-2xl font-bold text-foreground">Tableau de bord</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Bienvenue, <span className="text-primary font-semibold">{user?.prenom} {user?.nom}</span> · {user?.centre}
+          </p>
         </div>
       </motion.div>
+
+      {/* Boutons d'action principaux (Questionnaires) */}
+      <div className="grid md:grid-cols-3 gap-4 mb-8">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+          <Card onClick={() => navigate(ROUTE_PATHS.FORMULAIRE_SFE)} className="cursor-pointer border-2 hover:border-primary transition-all hover:shadow-lg group bg-white/50 backdrop-blur-sm">
+            <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                <ClipboardList className="w-8 h-8 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-foreground">Questionnaire aux SFE</h3>
+                <p className="text-xs text-muted-foreground mt-1">Évaluation des connaissances et pratiques des prestataires</p>
+              </div>
+              <Button variant="ghost" className="w-full mt-2 text-primary group-hover:bg-primary/5">
+                Démarrer <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <Card onClick={() => navigate(ROUTE_PATHS.FORMULAIRE_PATIENTE)} className="cursor-pointer border-2 hover:border-emerald-500 transition-all hover:shadow-lg group bg-white/50 backdrop-blur-sm">
+            <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-emerald-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                <Heart className="w-8 h-8 text-emerald-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-foreground">Questionnaire Femmes Enceintes</h3>
+                <p className="text-xs text-muted-foreground mt-1">Connaissances et attitudes face à l'hypertension artérielle</p>
+              </div>
+              <Button variant="ghost" className="w-full mt-2 text-emerald-600 group-hover:bg-emerald-50">
+                Démarrer <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+          <Card onClick={() => navigate(ROUTE_PATHS.FORMULAIRE_PATIENTE_HTA)} className="cursor-pointer border-2 hover:border-violet-500 transition-all hover:shadow-lg group bg-white/50 backdrop-blur-sm">
+            <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-violet-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                <Activity className="w-8 h-8 text-violet-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-foreground">Questionnaire HTA</h3>
+                <p className="text-xs text-muted-foreground mt-1">Saisie des données pour les femmes avec hypertension déclarée</p>
+              </div>
+              <Button variant="ghost" className="w-full mt-2 text-violet-600 group-hover:bg-violet-50">
+                Démarrer <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
 
       {/* Alerte prééclampsie si des alertes existent */}
       {totalAlertes > 0 && (

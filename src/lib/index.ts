@@ -50,18 +50,19 @@ export interface ReponseSFE {
   antihypertensifs: string[];
   autreAntihypertensifs: string;
   casReference: string;
+  informeSignesDanger: boolean;
+  signesDangerExpliques: string[];
   conseilsHypertendue: string[];
+  autreConseilsHypertendue: string;
   difficultesHta: boolean;
-  detailsDifficultes: string;
+  difficultesRencontrees: string[];
+  autreDifficultes: string;
   ameliorationsProposees: string;
   collaborationRelais: boolean;
   commentCollaboration: string;
   contreRefRenvoyees: boolean;
   pourquoiNonContreRef: string;
-  // Section 4 - Évolution
-  proportionGuerison: string;
-  autreProportionGuerison: string;
-  femmesRisqueComplications: string[];
+  laboFonctionnel: boolean;
   statut: 'complet' | 'brouillon';
   alerte: boolean;
 }
@@ -86,6 +87,9 @@ export interface ReponsePatiente {
   nbEnfantsVivants: string;
   fauxCouche: boolean;
   atcdHtaPreeclampsie: boolean;
+  dejaCesarisee: boolean;
+  nbCesariennes: string;
+  accoucheApresCesarienne: boolean;
   // Section 3 - Suivi prénatal
   inscriteCpn: boolean;
   moisDebutCpn: string;
@@ -101,9 +105,8 @@ export interface ReponsePatiente {
   autreSource: string;
   signesAlerte: string[];
   sfExpliqueSgnsDanger: boolean;
-  lesquelsSgnsDanger: string;
   conseilsPrevention: boolean;
-  lesquelsConseils: string;
+  conseilleRevenirRapidement: boolean;
   satisfactionSuivi: boolean;
   suggestions: string[];
   autreSuggestions: string;
@@ -219,12 +222,16 @@ export const SUGGESTIONS_PATIENTE = [
 ];
 export const SUIVIS = ['Sage-femme', 'Médecin', 'Infirmier(e)', 'Autre'];
 export const SOURCES_INFO = ['Sage-femme', 'Médecin', 'Famille/Amis', 'Autre'];
-export const PROPORTIONS_GUERISON = ['>25 %', '>50 %', '>75 %'];
-export const FEMMES_RISQUE = [
-  'Ayant été référées',
-  'Ayant été vues pour la première fois avec la complication mais ayant suivi leur grossesse dans un autre centre',
-  'Ayant mal suivi la grossesse ou pas du tout',
-  'Ayant bien suivi leur grossesse mais n\'ayant pas été suffisamment sensibilisées sur les signes de danger'
+export const DIFFICULTES_SFE = [
+  'Appareil à tension non fonctionnel',
+  'Rupture de bandelettes d’urines',
+  'Manque de médicaments (Nifédipine, Loxen, Sulfate de Magnésium)',
+  'Manque de formation',
+  'Manque de personnel (Absence /insuffisance de gynécologues, de SFE)'
+];
+export const SIGNES_DANGER_SFE = [
+  'Vision troublée', 'Bruits dans les oreilles', 'Céphalées rebelles',
+  'Douleurs épigastriques', 'œdèmes généralisés', 'Convulsions'
 ];
 
 export const Q4_MESURE_TA = ['A chaque consultation', 'Plus fréquemment que d\'habitude', 'Rarement'];
