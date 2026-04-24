@@ -3,7 +3,7 @@ import { NavLink, useNavigate, Outlet } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, ClipboardList, BarChart3, History, LogOut,
-  Heart, Menu, X, Wifi, WifiOff, Bell, UserCircle, ChevronRight
+  Heart, Menu, X, Wifi, WifiOff, Bell, UserCircle, ChevronRight, Activity
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { path: ROUTE_PATHS.DASHBOARD, icon: LayoutDashboard, label: 'Tableau de bord' },
   { path: ROUTE_PATHS.FORMULAIRE_SFE, icon: ClipboardList, label: 'Enquête Sage-Femme' },
   { path: ROUTE_PATHS.FORMULAIRE_PATIENTE, icon: Heart, label: 'Enquête Patiente' },
+  { path: ROUTE_PATHS.FORMULAIRE_PATIENTE_HTA, icon: Activity, label: 'Suivi HTA' },
   { path: ROUTE_PATHS.STATISTIQUES, icon: BarChart3, label: 'Statistiques' },
   { path: ROUTE_PATHS.HISTORIQUE, icon: History, label: 'Historique' },
 ];
@@ -208,7 +209,7 @@ export default function Layout() {
 
         {/* Bottom Navigation (Mobile Only) */}
         <nav className="fixed bottom-0 left-0 right-0 lg:hidden glass border-t border-border/50 px-4 pt-2 pb-[calc(var(--safe-area-bottom)+8px)] z-40 flex items-center justify-around shadow-lg shadow-black/5">
-          {NAV_ITEMS.slice(0, 3).map(item => (
+          {NAV_ITEMS.slice(0, 4).map(item => (
             <NavLink
               key={item.path}
               to={item.path}
