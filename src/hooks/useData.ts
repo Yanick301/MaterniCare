@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { ReponseSFE, ReponsePatiente, ReponsePatienteHTA, User } from '@/lib/index';
+import type { ReponseSFE, ReponsePatiente, User } from '@/lib/index';
 import { supabase } from '@/lib/supabase';
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 
@@ -15,18 +15,29 @@ const STORAGE_KEYS = {
 const toSnakeCase = (obj: Record<string, unknown>): Record<string, unknown> => {
   const snake: Record<string, unknown> = {};
   for (const key in obj) {
-    const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+    const snakeKey = key
+      .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2') // HTMLParser → HTML_Parser
+      .replace(/([a-z0-9])([A-Z])/g, '$1_$2')    // q10Ecoute → q10_Ecoute, freqTA → freq_TA
+      .toLowerCase();
     snake[snakeKey] = obj[key];
   }
   return snake;
 };
 
+
 const toCamelCase = (obj: Record<string, unknown>): Record<string, unknown> => {
   const camel: Record<string, unknown> = {};
   for (const key in obj) {
-    const camelKey = key.replace(/([-_][a-z])/g, group =>
+    // Standard snake_case to camelCase conversion
+    let camelKey = key.replace(/([-_][a-z])/g, group =>
       group.toUpperCase().replace('-', '').replace('_', '')
     );
+    // Restore known acronyms that should remain uppercase: Ta->TA, Hta->HTA, Cpn->CPN, Sfe->SFE
+    camelKey = camelKey
+      .replace(/Ta([A-Z]|$)/g, 'TA$1')
+      .replace(/Hta([A-Z]|$)/g, 'HTA$1')
+      .replace(/Cpn([A-Z]|$)/g, 'CPN$1')
+      .replace(/Sfe([A-Z]|$)/g, 'SFE$1');
     camel[camelKey] = obj[key];
   }
   return camel;
@@ -162,54 +173,7 @@ export function usePatientesData() {
   return { responses, save, remove, loading, refresh: fetchResponses };
 }
 
-// ─── usePatientesHTAData ──────────────────────────────────────────
-export function usePatientesHTAData() {
-  const [responses, setResponses] = useState<ReponsePatienteHTA[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchResponses = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('surveys_patientes_hta')
-      .select('*')
-      .order('date', { ascending: false });
-
-    if (!error && data) {
-      setResponses(data.map(r => toCamelCase(r)) as unknown as ReponsePatienteHTA[]);
-    }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    fetchResponses();
-  }, [fetchResponses]);
-
-  const save = useCallback(async (r: ReponsePatienteHTA) => {
-    const data = toSnakeCase(r as unknown as Record<string, unknown>);
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (sessionData.session?.user?.id) {
-      data.user_id = sessionData.session.user.id;
-    }
-    const { error } = await supabase
-      .from('surveys_patientes_hta')
-      .upsert(data);
-
-    if (error) throw error;
-    fetchResponses();
-  }, [fetchResponses]);
-
-  const remove = useCallback(async (id: string) => {
-    const { error } = await supabase
-      .from('surveys_patientes_hta')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
-    fetchResponses();
-  }, [fetchResponses]);
-
-  return { responses, save, remove, loading, refresh: fetchResponses };
-}
+// usePatientesHTAData a été supprimé (fusionné avec usePatientesData)
 
 // ─── useAuth ──────────────────────────────────────────────────
 export function useAuth() {

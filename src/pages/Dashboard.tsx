@@ -87,7 +87,7 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Boutons d'action principaux (Questionnaires) */}
-      <div className="grid md:grid-cols-3 gap-4 mb-8">
+      <div className="grid md:grid-cols-2 gap-4 mb-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <Card onClick={() => navigate(ROUTE_PATHS.FORMULAIRE_SFE)} className="cursor-pointer border-2 hover:border-primary transition-all hover:shadow-lg group bg-white/50 backdrop-blur-sm">
             <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
@@ -122,22 +122,6 @@ export default function Dashboard() {
           </Card>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-          <Card onClick={() => navigate(ROUTE_PATHS.FORMULAIRE_PATIENTE_HTA)} className="cursor-pointer border-2 hover:border-violet-500 transition-all hover:shadow-lg group bg-white/50 backdrop-blur-sm">
-            <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-violet-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                <Activity className="w-8 h-8 text-violet-600" />
-              </div>
-              <div>
-                <h3 className="font-bold text-lg text-foreground">Questionnaire HTA</h3>
-                <p className="text-xs text-muted-foreground mt-1">Saisie des données pour les femmes avec hypertension déclarée</p>
-              </div>
-              <Button variant="ghost" className="w-full mt-2 text-violet-600 group-hover:bg-violet-50">
-                Démarrer <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </CardContent>
-          </Card>
-        </motion.div>
       </div>
 
       {/* Alerte prééclampsie si des alertes existent */}

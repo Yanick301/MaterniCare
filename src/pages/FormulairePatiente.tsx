@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Save, CheckCircle, Zap, User, ArrowLeft } from 'lucide-react';
+import { ChevronRight, Save, CheckCircle, Zap, User, ArrowLeft, Share2, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { usePatientesData, useAuth } from '@/hooks/useData';
+import { usePatientesData, useAuth, createSharedLink } from '@/hooks/useData';
 import {
   generateId, ROUTE_PATHS, AGES_PATIENTE, SITUATIONS_MATRIMONIALES, NIVEAUX_INSTRUCTION,
   PROFESSIONS, NB_GROSSESSES, NB_CONSULTATIONS, SIGNES_ALERTE_PATIENTE, SUGGESTIONS_PATIENTE,
-  SUIVIS, SOURCES_INFO, CENTRES, detectAlertePatiente
+  SUIVIS, SOURCES_INFO, CENTRES, detectAlertePatiente,
+  Q4_MESURE_TA, Q12_EVALUE_SUIVI, Q14_MESURE_TA_CHAQUE_CONSULT, Q15_IMPORTANCE_BANDELETTE,
+  Q17_INSISTE_BANDELETTE, Q19_POURQUOI_BANDELETTE, Q23_ACTION_SF, Q25_EXAMENS_DEMANDES, Q26_SIGNES_INHABITUELS
 } from '@/lib/index';
 import type { ReponsePatiente, FormMode } from '@/lib/index';
 
@@ -21,6 +23,9 @@ const SECTIONS = [
   { id: 2, titre: 'Antécédents', icon: '📋' },
   { id: 3, titre: 'Suivi Prénatal', icon: '🩺' },
   { id: 4, titre: 'Connaissances et Satisfaction', icon: '💡' },
+  { id: 5, titre: 'Évaluation du suivi', icon: '📋' },
+  { id: 6, titre: 'Prise en charge', icon: '💡' },
+  { id: 7, titre: 'Complications', icon: '🚨' },
 ];
 
 function CheckboxGroup({ options, selected, onChange }: { options: string[]; selected: string[]; onChange: (v: string[]) => void; }) {
@@ -82,7 +87,17 @@ const emptyForm = (): Partial<ReponsePatiente> => ({
   autreSuivi: '', taMesuree: '', entenduHtaGrossesse: false, dangerHtaMereBebe: false,
   connaissancePreeclampsie: false, sourceInfoPreeclampsie: '', autreSource: '',
   signesAlerte: [], sfExpliqueSgnsDanger: false, conseilsPrevention: false,
-  conseilleRevenirRapidement: false, satisfactionSuivi: false, suggestions: [], autreSuggestions: ''
+  conseilleRevenirRapidement: false, satisfactionSuivi: false, suggestions: [], autreSuggestions: '',
+  // Questions HTA
+  q1RoleSf: '', q2TensionElevee: '', q3RisqueComplication: '',
+  q4MesureTa: '', q5NoteResultats: '', q6RdvRapproches: '',
+  q7RevenirRapidement: '', q8ExpliqueEtat: '', q9BienSuivie: '',
+  q10Ecoute: '', q11Confiance: '', q12EvalueSuivi: '',
+  q13RoleSfHta: '', q14MesureTaChaqueConsult: '', q15ImportanceBandelette: '',
+  q16BandeletteDetecteComplication: '', q17InsisteBandelette: '', q18SaitPourquoiBandelette: '',
+  q19PourquoiBandelette: [], q20ComprendExplications: '', q21PoseQuestions: '',
+  q22TensionEleveeGrossesse: '', q23ActionSf: '', q24RegulierementSuivie: '',
+  q25ExamensDemandes: '', q26SignesInhabituels: [],
 });
 
 export default function FormulairePatiente() {
@@ -97,6 +112,7 @@ export default function FormulairePatiente() {
   const { save } = usePatientesData();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [shareLink, setShareLink] = useState('');
 
   const up = (field: keyof ReponsePatiente, value: unknown) => setForm(f => ({ ...f, [field]: value }));
 
@@ -124,6 +140,29 @@ export default function FormulairePatiente() {
     }
   };
 
+  const handleShare = async () => {
+    const shareId = generateId();
+    try {
+      await createSharedLink({
+        id: shareId,
+        senderName: `${user?.prenom || ''} ${user?.nom || ''}`.trim() || 'Sage-femme',
+        senderEmail: user?.email || '',
+        centre: (centre === 'Autre' ? customCentre : centre) || user?.centre || '',
+        formType: 'patiente',
+      });
+      const baseUrl = window.location.origin + window.location.pathname;
+      const link = `${baseUrl}#/questionnaire/${shareId}`;
+      setShareLink(link);
+      navigator.clipboard.writeText(link).then(() => {
+        toast.success('Lien copié !');
+      }).catch(() => {
+        toast.success('Lien généré ci-dessous');
+      });
+    } catch (err: any) {
+      toast.error(`Erreur : ${err.message}`);
+    }
+  };
+
   if (!mode) {
     return (
       <div className="p-4 lg:p-6">
@@ -133,6 +172,29 @@ export default function FormulairePatiente() {
           </Button>
           <h1 className="text-2xl font-bold text-foreground mb-1 mt-4">Questionnaire aux Femmes Enceintes</h1>
           <p className="text-muted-foreground mb-8 text-sm">Choisissez le mode de saisie pour la patiente</p>
+
+          <div className="mb-6 p-4 bg-primary/5 border border-primary/20 rounded-2xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <Share2 className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground">Partager avec la patiente</p>
+                <p className="text-xs text-muted-foreground">Envoyez ce lien à la patiente pour qu'elle remplisse ses informations</p>
+              </div>
+              <Button size="sm" onClick={handleShare} className="gap-2 shrink-0">
+                <Share2 className="w-3 h-3" /> Partager
+              </Button>
+            </div>
+            {shareLink && (
+              <div className="mt-3 flex items-center gap-2 bg-white rounded-lg p-2 border border-primary/10 transition-all animate-in fade-in slide-in-from-top-2">
+                <Input value={shareLink} readOnly className="h-8 text-xs bg-transparent border-none focus-visible:ring-0" />
+                <Button size="sm" variant="ghost" className="h-8 px-2 shrink-0" onClick={() => { navigator.clipboard.writeText(shareLink); toast.success('Lien copié !'); }}>
+                  <Copy className="w-3 h-3" />
+                </Button>
+              </div>
+            )}
+          </div>
 
           <div className="grid sm:grid-cols-2 gap-4">
             <motion.div whileHover={{ y: -4 }} whileTap={{ scale: 0.98 }}>
@@ -343,6 +405,122 @@ export default function FormulairePatiente() {
           <div className="space-y-2">
             <Label className="text-base font-semibold">Que suggérez-vous pour améliorer les soins à l’endroit des femmes avec hypertension et /ou éclampsie ?</Label>
             <CheckboxGroup options={SUGGESTIONS_PATIENTE} selected={form.suggestions || []} onChange={v => up('suggestions', v)} />
+          </div>
+        </div>
+      );
+      case 4: return (
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <Label>24. Pensez vous que la sage femme joue un rôle important dans la prévention de l'hypertension artérielle</Label>
+            <RadioGroup options={['Oui', 'Non']} value={form.q1RoleSf || ''} onChange={v => up('q1RoleSf', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>25. La sage femme vous a-t-elle déjà dit que vous avez une tension élevée ?</Label>
+            <RadioGroup options={['Oui', 'Non', 'Je ne sais pas']} value={form.q2TensionElevee || ''} onChange={v => up('q2TensionElevee', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>26. Vous a-t-elle expliqué que vous êtes à risque de complications comme la prééclampsie ?</Label>
+            <RadioGroup options={['Oui clairement', 'Non']} value={form.q3RisqueComplication || ''} onChange={v => up('q3RisqueComplication', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>27. Depuis que votre tension est élevée, la mesure de la tension artérielle est faite:</Label>
+            <RadioGroup options={Q4_MESURE_TA} value={form.q4MesureTa || ''} onChange={v => up('q4MesureTa', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>28. La Sage femme note-t-elle vos résultats dans votre carnet ?</Label>
+            <RadioGroup options={['Oui', 'Non']} value={form.q5NoteResultats || ''} onChange={v => up('q5NoteResultats', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>29. Avez-vous eu des rendez-vous rapprochés à cause de votre tension ?</Label>
+            <RadioGroup options={['Oui', 'Non']} value={form.q6RdvRapproches || ''} onChange={v => up('q6RdvRapproches', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>30. La Sage femme vous demande-t-elle de revenir rapidement en cas de problème ?</Label>
+            <RadioGroup options={['Oui', 'Non']} value={form.q7RevenirRapidement || ''} onChange={v => up('q7RevenirRapidement', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>31. La sage femme vous explique t-elle claire ment votre etat de santé ?</Label>
+            <RadioGroup options={['Oui', 'Non']} value={form.q8ExpliqueEtat || ''} onChange={v => up('q8ExpliqueEtat', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>32. Vous sentez vous bien qsuivie par la Sage femme?</Label>
+            <RadioGroup options={['Oui', 'Non']} value={form.q9BienSuivie || ''} onChange={v => up('q9BienSuivie', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>33. Prend elle le temps de vous ecouter?</Label>
+            <RadioGroup options={['Oui', 'Non']} value={form.q10Ecoute || ''} onChange={v => up('q10Ecoute', v)} />
+          </div>
+        </div>
+      );
+      case 5: return (
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <Label>34. Vous met-elle en confiance?</Label>
+            <RadioGroup options={['Oui', 'Non']} value={form.q11Confiance || ''} onChange={v => up('q11Confiance', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>35. Comment evaluez vous globalement le suivi de votre grossesse ?</Label>
+            <RadioGroup options={Q12_EVALUE_SUIVI} value={form.q12EvalueSuivi || ''} onChange={v => up('q12EvalueSuivi', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>36. Selon vous la Sage femme joue t-elle un rôle important dans la prévention des complications liées à l'hypertension artérielle?</Label>
+            <RadioGroup options={['Oui', 'Non']} value={form.q13RoleSfHta || ''} onChange={v => up('q13RoleSfHta', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>37. La sage femme mesure t-elle votre tension arterielle à chaque consultation</Label>
+            <RadioGroup options={Q14_MESURE_TA_CHAQUE_CONSULT} value={form.q14MesureTaChaqueConsult || ''} onChange={v => up('q14MesureTaChaqueConsult', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>38. Insiste-t-elle pour l'importance de la bandelette urinaire?</Label>
+            <RadioGroup options={Q15_IMPORTANCE_BANDELETTE} value={form.q15ImportanceBandelette || ''} onChange={v => up('q15ImportanceBandelette', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>39. Vous a-t-elle dit que cet examen permet de detecter les complications comme la prééclampsie?</Label>
+            <RadioGroup options={['oui', 'Non', 'Je ne sais pas']} value={form.q16BandeletteDetecteComplication || ''} onChange={v => up('q16BandeletteDetecteComplication', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>40. La sage femme insiste t-elle pour que vous fassiez la bandelette urinaire à chaque consultation ?</Label>
+            <RadioGroup options={Q17_INSISTE_BANDELETTE} value={form.q17InsisteBandelette || ''} onChange={v => up('q17InsisteBandelette', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>41. Saviez vous pourquoi on fait la bandelette urinaire?</Label>
+            <RadioGroup options={['oui', 'Non']} value={form.q18SaitPourquoiBandelette || ''} onChange={v => up('q18SaitPourquoiBandelette', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>42. Si oui, pourquoi ?</Label>
+            <CheckboxGroup options={Q19_POURQUOI_BANDELETTE} selected={form.q19PourquoiBandelette || []} onChange={v => up('q19PourquoiBandelette', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>43. Comprenez vous facilement les explications des sages femmes?</Label>
+            <RadioGroup options={['Non', 'oui']} value={form.q20ComprendExplications || ''} onChange={v => up('q20ComprendExplications', v)} />
+          </div>
+        </div>
+      );
+      case 6: return (
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <Label>44. Avez vous la possibilité de poser des questions?</Label>
+            <RadioGroup options={['oui', 'Non']} value={form.q21PoseQuestions || ''} onChange={v => up('q21PoseQuestions', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>45. Avez vous deja fait une tension elevee pendant cette grossesse?</Label>
+            <RadioGroup options={['oui', 'Non', 'Je ne sais pas']} value={form.q22TensionEleveeGrossesse || ''} onChange={v => up('q22TensionEleveeGrossesse', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>46. Si oui, qu'a fait la Sage femme?</Label>
+            <RadioGroup options={Q23_ACTION_SF} value={form.q23ActionSf || ''} onChange={v => up('q23ActionSf', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>47. Êtes vous régulièrement suivie apres un problème?</Label>
+            <RadioGroup options={['oui', 'Non']} value={form.q24RegulierementSuivie || ''} onChange={v => up('q24RegulierementSuivie', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>48. Faites vous les examens demandés?</Label>
+            <RadioGroup options={Q25_EXAMENS_DEMANDES} value={form.q25ExamensDemandes || ''} onChange={v => up('q25ExamensDemandes', v)} />
+          </div>
+          <div className="space-y-2">
+            <Label>49. En cas de signes inhabituels (maux de tête, oedemes, vision floue...), que faites vous?</Label>
+            <CheckboxGroup options={Q26_SIGNES_INHABITUELS} selected={form.q26SignesInhabituels || []} onChange={v => up('q26SignesInhabituels', v)} />
           </div>
         </div>
       );

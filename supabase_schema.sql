@@ -74,6 +74,9 @@ CREATE TABLE IF NOT EXISTS public.surveys_sfe (
   comment_collaboration TEXT,
   contre_ref_renvoyees BOOLEAN,
   pourquoi_non_contre_ref TEXT,
+  details_difficultes TEXT,
+  proportion_guerison TEXT,
+  femmes_risque_complications TEXT[],
   labo_fonctionnel BOOLEAN,
   
   statut TEXT DEFAULT 'brouillon',
@@ -145,29 +148,129 @@ CREATE TABLE IF NOT EXISTS public.surveys_patientes (
   autre_source TEXT,
   signes_alerte TEXT[],
   sf_explique_sgns_danger BOOLEAN,
+  lesquels_sgns_danger TEXT,
   conseils_prevention BOOLEAN,
+  lesquels_conseils TEXT,
   conseille_revenir_rapidement BOOLEAN,
   satisfaction_suivi BOOLEAN,
   suggestions TEXT[],
   autre_suggestions TEXT,
+
+  -- Questions spécifiques HTA intégrées
+  q1_role_sf TEXT,
+  q2_tension_elevee TEXT,
+  q3_risque_complication TEXT,
+  q4_mesure_ta TEXT,
+  q5_note_resultats TEXT,
+  q6_rdv_rapproches TEXT,
+  q7_revenir_rapidement TEXT,
+  q8_explique_etat TEXT,
+  q9_bien_suivie TEXT,
+  q10_ecoute TEXT,
+  q11_confiance TEXT,
+  q12_evalue_suivi TEXT,
+  q13_role_sf_hta TEXT,
+  q14_mesure_ta_chaque_consult TEXT,
+  q15_importance_bandelette TEXT,
+  q16_bandelette_detecte_complication TEXT,
+  q17_insiste_bandelette TEXT,
+  q18_sait_pourquoi_bandelette TEXT,
+  q19_pourquoi_bandelette TEXT[],
+  q20_comprend_explications TEXT,
+  q21_pose_questions TEXT,
+  q22_tension_elevee_grossesse TEXT,
+  q23_action_sf TEXT,
+  q24_regulierement_suivie TEXT,
+  q25_examens_demandes TEXT,
+  q26_signes_inhabituels TEXT[],
   
   statut TEXT DEFAULT 'brouillon',
   alerte BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- Migration pour ajouter les colonnes d'idientité si elles manquent (si table existait déjà)
+-- Migration pour assurer que toutes les colonnes existent
 DO $$ 
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='nom_patiente') THEN
-    ALTER TABLE public.surveys_patientes ADD COLUMN nom_patiente TEXT;
+  -- Colonnes d'identité de base
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='accouche_apres_cesarienne') THEN
+    ALTER TABLE public.surveys_patientes ADD COLUMN accouche_apres_cesarienne BOOLEAN;
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='prenom_patiente') THEN
-    ALTER TABLE public.surveys_patientes ADD COLUMN prenom_patiente TEXT;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='sf_explique_sgns_danger') THEN
+    ALTER TABLE public.surveys_patientes ADD COLUMN sf_explique_sgns_danger BOOLEAN;
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='telephone_patiente') THEN
-    ALTER TABLE public.surveys_patientes ADD COLUMN telephone_patiente TEXT;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='lesquels_sgns_danger') THEN
+    ALTER TABLE public.surveys_patientes ADD COLUMN lesquels_sgns_danger TEXT;
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='conseils_prevention') THEN
+    ALTER TABLE public.surveys_patientes ADD COLUMN conseils_prevention BOOLEAN;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='lesquels_conseils') THEN
+    ALTER TABLE public.surveys_patientes ADD COLUMN lesquels_conseils TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='conseille_revenir_rapidement') THEN
+    ALTER TABLE public.surveys_patientes ADD COLUMN conseille_revenir_rapidement BOOLEAN;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='satisfaction_suivi') THEN
+    ALTER TABLE public.surveys_patientes ADD COLUMN satisfaction_suivi BOOLEAN;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='suggestions') THEN
+    ALTER TABLE public.surveys_patientes ADD COLUMN suggestions TEXT[];
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='autre_suggestions') THEN
+    ALTER TABLE public.surveys_patientes ADD COLUMN autre_suggestions TEXT;
+  END IF;
+  
+  -- Colonnes HTA ajoutées individuellement pour robustesse
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q1_role_sf') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q1_role_sf TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q2_tension_elevee') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q2_tension_elevee TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q3_risque_complication') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q3_risque_complication TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q4_mesure_ta') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q4_mesure_ta TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q5_note_resultats') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q5_note_resultats TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q6_rdv_rapproches') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q6_rdv_rapproches TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q7_revenir_rapidement') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q7_revenir_rapidement TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q8_explique_etat') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q8_explique_etat TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q9_bien_suivie') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q9_bien_suivie TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q10_ecoute') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q10_ecoute TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q11_confiance') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q11_confiance TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q12_evalue_suivi') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q12_evalue_suivi TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q13_role_sf_hta') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q13_role_sf_hta TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q14_mesure_ta_chaque_consult') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q14_mesure_ta_chaque_consult TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q15_importance_bandelette') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q15_importance_bandelette TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q16_bandelette_detecte_complication') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q16_bandelette_detecte_complication TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q17_insiste_bandelette') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q17_insiste_bandelette TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q18_sait_pourquoi_bandelette') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q18_sait_pourquoi_bandelette TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q19_pourquoi_bandelette') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q19_pourquoi_bandelette TEXT[]; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q20_comprend_explications') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q20_comprend_explications TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q21_pose_questions') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q21_pose_questions TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q22_tension_elevee_grossesse') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q22_tension_elevee_grossesse TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q23_action_sf') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q23_action_sf TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q24_regulierement_suivie') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q24_regulierement_suivie TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q25_examens_demandes') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q25_examens_demandes TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='q26_signes_inhabituels') THEN ALTER TABLE public.surveys_patientes ADD COLUMN q26_signes_inhabituels TEXT[]; END IF;
+  
+  -- SFE
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_sfe' AND column_name='autre_freq_controle_ta') THEN ALTER TABLE public.surveys_sfe ADD COLUMN autre_freq_controle_ta TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_sfe' AND column_name='autre_recherch_proteinurie') THEN ALTER TABLE public.surveys_sfe ADD COLUMN autre_recherch_proteinurie TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_sfe' AND column_name='autre_conduite_hta') THEN ALTER TABLE public.surveys_sfe ADD COLUMN autre_conduite_hta TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_sfe' AND column_name='autre_antihypertensifs') THEN ALTER TABLE public.surveys_sfe ADD COLUMN autre_antihypertensifs TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_sfe' AND column_name='autre_conseils_hypertendue') THEN ALTER TABLE public.surveys_sfe ADD COLUMN autre_conseils_hypertendue TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_sfe' AND column_name='details_difficultes') THEN ALTER TABLE public.surveys_sfe ADD COLUMN details_difficultes TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_sfe' AND column_name='proportion_guerison') THEN ALTER TABLE public.surveys_sfe ADD COLUMN proportion_guerison TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_sfe' AND column_name='femmes_risque_complications') THEN ALTER TABLE public.surveys_sfe ADD COLUMN femmes_risque_complications TEXT[]; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_sfe' AND column_name='autre_difficultes') THEN ALTER TABLE public.surveys_sfe ADD COLUMN autre_difficultes TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_sfe' AND column_name='autre_def_hta') THEN ALTER TABLE public.surveys_sfe ADD COLUMN autre_def_hta TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_sfe' AND column_name='autre_carac_preeclampsie') THEN ALTER TABLE public.surveys_sfe ADD COLUMN autre_carac_preeclampsie TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_sfe' AND column_name='autre_age_gestationnel') THEN ALTER TABLE public.surveys_sfe ADD COLUMN autre_age_gestationnel TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_sfe' AND column_name='autre_fact_risque') THEN ALTER TABLE public.surveys_sfe ADD COLUMN autre_fact_risque TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_sfe' AND column_name='autre_signes_cliniques') THEN ALTER TABLE public.surveys_sfe ADD COLUMN autre_signes_cliniques TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_sfe' AND column_name='comment_collaboration') THEN ALTER TABLE public.surveys_sfe ADD COLUMN comment_collaboration TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_sfe' AND column_name='pourquoi_non_contre_ref') THEN ALTER TABLE public.surveys_sfe ADD COLUMN pourquoi_non_contre_ref TEXT; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_sfe' AND column_name='ameliorations_proposees') THEN ALTER TABLE public.surveys_sfe ADD COLUMN ameliorations_proposees TEXT; END IF;
+  
+  -- Colonne source pour les deux tables
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_sfe' AND column_name='source') THEN ALTER TABLE public.surveys_sfe ADD COLUMN source TEXT DEFAULT 'direct'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='surveys_patientes' AND column_name='source') THEN ALTER TABLE public.surveys_patientes ADD COLUMN source TEXT DEFAULT 'direct'; END IF;
 END $$;
 
 ALTER TABLE public.surveys_patientes ENABLE ROW LEVEL SECURITY;
@@ -187,6 +290,11 @@ ON public.surveys_patientes FOR UPDATE USING (auth.uid() = user_id);
 DROP POLICY IF EXISTS "Les experts peuvent supprimer les données de leurs patientes" ON public.surveys_patientes;
 CREATE POLICY "Les experts peuvent supprimer les données de leurs patientes" 
 ON public.surveys_patientes FOR DELETE USING (auth.uid() = user_id);
+
+-- Insertion publique pour questionnaires partagés Patientes
+DROP POLICY IF EXISTS "Insertion publique pour questionnaires partagés Patientes" ON public.surveys_patientes;
+CREATE POLICY "Insertion publique pour questionnaires partagés Patientes" 
+ON public.surveys_patientes FOR INSERT WITH CHECK (true);
 
 -- 4. Table des liens de partage
 CREATE TABLE IF NOT EXISTS public.shared_links (
@@ -245,64 +353,4 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
--- 6. Table des Enquêtes Patientes HTA (Nouvelle évaluation)
-CREATE TABLE IF NOT EXISTS public.surveys_patientes_hta (
-  id TEXT PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) DEFAULT auth.uid(),
-  date TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
-  sage_femme TEXT,
-  centre TEXT,
-  nom_patiente TEXT,
-  prenom_patiente TEXT,
-  telephone_patiente TEXT,
-  
-  -- Réponses aux 26 questions
-  q1_role_sf TEXT,
-  q2_tension_elevee TEXT,
-  q3_risque_complication TEXT,
-  q4_mesure_ta TEXT,
-  q5_note_resultats TEXT,
-  q6_rdv_rapproches TEXT,
-  q7_revenir_rapidement TEXT,
-  q8_explique_etat TEXT,
-  q9_bien_suivie TEXT,
-  q10_ecoute TEXT,
-  q11_confiance TEXT,
-  q12_evalue_suivi TEXT,
-  q13_role_sf_hta TEXT,
-  q14_mesure_ta_chaque_consult TEXT,
-  q15_importance_bandelette TEXT,
-  q16_bandelette_detecte_complication TEXT,
-  q17_insiste_bandelette TEXT,
-  q18_sait_pourquoi_bandelette TEXT,
-  q19_pourquoi_bandelette TEXT[],
-  q20_comprend_explications TEXT,
-  q21_pose_questions TEXT,
-  q22_tension_elevee_grossesse TEXT,
-  q23_action_sf TEXT,
-  q24_regulierement_suivie TEXT,
-  q25_examens_demandes TEXT,
-  q26_signes_inhabituels TEXT[],
-  
-  statut TEXT DEFAULT 'brouillon',
-  alerte BOOLEAN DEFAULT false,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
-);
-
-ALTER TABLE public.surveys_patientes_hta ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Les experts voient les données HTA de leurs propres patientes" ON public.surveys_patientes_hta;
-CREATE POLICY "Les experts voient les données HTA de leurs propres patientes" 
-ON public.surveys_patientes_hta FOR SELECT USING (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Les experts peuvent insérer des données HTA patientes" ON public.surveys_patientes_hta;
-CREATE POLICY "Les experts peuvent insérer des données HTA patientes" 
-ON public.surveys_patientes_hta FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
-
-DROP POLICY IF EXISTS "Les experts peuvent modifier les données HTA de leurs patientes" ON public.surveys_patientes_hta;
-CREATE POLICY "Les experts peuvent modifier les données HTA de leurs patientes" 
-ON public.surveys_patientes_hta FOR UPDATE USING (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Les experts peuvent supprimer les données HTA de leurs patientes" ON public.surveys_patientes_hta;
-CREATE POLICY "Les experts peuvent supprimer les données HTA de leurs patientes" 
-ON public.surveys_patientes_hta FOR DELETE USING (auth.uid() = user_id);
+-- (surveys_patientes_hta a été fusionnée avec surveys_patientes)

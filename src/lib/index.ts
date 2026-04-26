@@ -7,7 +7,6 @@ export const ROUTE_PATHS = {
   DASHBOARD: '/dashboard',
   FORMULAIRE_SFE: '/formulaire/sfe',
   FORMULAIRE_PATIENTE: '/formulaire/patiente',
-  FORMULAIRE_PATIENTE_HTA: '/formulaire/patiente-hta',
   STATISTIQUES: '/statistiques',
   HISTORIQUE: '/historique',
 };
@@ -62,9 +61,13 @@ export interface ReponseSFE {
   commentCollaboration: string;
   contreRefRenvoyees: boolean;
   pourquoiNonContreRef: string;
+  detailsDifficultes: string;
+  proportionGuerison: string;
+  femmesRisqueComplications: string[];
   laboFonctionnel: boolean;
   statut: 'complet' | 'brouillon';
   alerte: boolean;
+  source?: 'direct' | 'partage';
 }
 
 export interface ReponsePatiente {
@@ -105,55 +108,51 @@ export interface ReponsePatiente {
   autreSource: string;
   signesAlerte: string[];
   sfExpliqueSgnsDanger: boolean;
+  lesquelsSgnsDanger: string;
   conseilsPrevention: boolean;
+  lesquelsConseils: string;
   conseilleRevenirRapidement: boolean;
   satisfactionSuivi: boolean;
   suggestions: string[];
   autreSuggestions: string;
+
+  // Questions HTA fusionnées
+  q1RoleSf?: string;
+  q2TensionElevee?: string;
+  q3RisqueComplication?: string;
+  q4MesureTa?: string;
+  q5NoteResultats?: string;
+  q6RdvRapproches?: string;
+  q7RevenirRapidement?: string;
+  q8ExpliqueEtat?: string;
+  q9BienSuivie?: string;
+  q10Ecoute?: string;
+  q11Confiance?: string;
+  q12EvalueSuivi?: string;
+  q13RoleSfHta?: string;
+  q14MesureTaChaqueConsult?: string;
+  q15ImportanceBandelette?: string;
+  q16BandeletteDetecteComplication?: string;
+  q17InsisteBandelette?: string;
+  q18SaitPourquoiBandelette?: string;
+  q19PourquoiBandelette?: string[];
+  q20ComprendExplications?: string;
+  q21PoseQuestions?: string;
+  q22TensionEleveeGrossesse?: string;
+  q23ActionSf?: string;
+  q24RegulierementSuivie?: string;
+  q25ExamensDemandes?: string;
+  q26SignesInhabituels?: string[];
+
   statut: 'complet' | 'brouillon';
   alerte: boolean;
+  source?: 'direct' | 'partage';
 }
 
-export interface ReponsePatienteHTA {
-  id: string;
-  date: string;
-  sageFemme: string;
-  centre: string;
-  nomPatiente: string;
-  prenomPatiente: string;
-  telephonePatiente: string;
-  q1RoleSf: string;
-  q2TensionElevee: string;
-  q3RisqueComplication: string;
-  q4MesureTa: string;
-  q5NoteResultats: string;
-  q6RdvRapproches: string;
-  q7RevenirRapidement: string;
-  q8ExpliqueEtat: string;
-  q9BienSuivie: string;
-  q10Ecoute: string;
-  q11Confiance: string;
-  q12EvalueSuivi: string;
-  q13RoleSfHta: string;
-  q14MesureTaChaqueConsult: string;
-  q15ImportanceBandelette: string;
-  q16BandeletteDetecteComplication: string;
-  q17InsisteBandelette: string;
-  q18SaitPourquoiBandelette: string;
-  q19PourquoiBandelette: string[];
-  q20ComprendExplications: string;
-  q21PoseQuestions: string;
-  q22TensionEleveeGrossesse: string;
-  q23ActionSf: string;
-  q24RegulierementSuivie: string;
-  q25ExamensDemandes: string;
-  q26SignesInhabituels: string[];
-  statut: 'complet' | 'brouillon';
-  alerte: boolean;
-}
+// ReponsePatienteHTA a été fusionnée avec ReponsePatiente
 
 export type FormMode = 'patient' | 'registre';
-export type FormType = 'sfe' | 'patiente' | 'patiente_hta';
+export type FormType = 'sfe' | 'patiente';
 
 export interface AlertePreeclampsie {
   patienteId: string;

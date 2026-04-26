@@ -8,7 +8,6 @@ import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
 import FormulaireSFE from '@/pages/FormulaireSFE';
 import FormulairePatiente from '@/pages/FormulairePatiente';
-import FormulairePatienteHTA from '@/pages/FormulairePatienteHTA';
 import Statistiques from '@/pages/Statistiques';
 import Historique from '@/pages/Historique';
 
@@ -60,6 +59,7 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/questionnaire/sfe/:shareId" element={<QuestionnairePartage />} />
+        <Route path="/questionnaire/:shareId" element={<QuestionnairePartage />} />
 
         {/* Protected App Routes */}
         <Route element={
@@ -70,7 +70,6 @@ export default function App() {
           <Route path={ROUTE_PATHS.DASHBOARD} element={<Dashboard />} />
           <Route path={ROUTE_PATHS.FORMULAIRE_SFE} element={<FormulaireSFE />} />
           <Route path={ROUTE_PATHS.FORMULAIRE_PATIENTE} element={<FormulairePatiente />} />
-          <Route path={ROUTE_PATHS.FORMULAIRE_PATIENTE_HTA} element={<FormulairePatienteHTA />} />
           <Route path={ROUTE_PATHS.STATISTIQUES} element={<Statistiques />} />
           <Route path={ROUTE_PATHS.HISTORIQUE} element={<Historique />} />
         </Route>

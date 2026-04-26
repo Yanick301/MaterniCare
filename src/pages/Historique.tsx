@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { ClipboardList, Heart, AlertTriangle, CheckCircle, Clock, Search, Trash2, Download, Filter } from 'lucide-react';
+import { ClipboardList, Heart, AlertTriangle, CheckCircle, Clock, Search, Trash2, Download, Filter, Share2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 
@@ -71,7 +71,7 @@ function drawTwoColumns(doc: jsPDF, label1: string, val1: string, label2: string
 }
 
 function drawBadge(doc: jsPDF, text: string, x: number, y: number, type: 'alert' | 'success' | 'warning' | 'info'): number {
-  const colors: Record<string, [number, number, number, number, number, number]> = {
+  const colors: Record<string, [[number, number, number], [number, number, number]]> = {
     alert: [PDF_COLORS.alertBg, PDF_COLORS.alert],
     success: [PDF_COLORS.successBg, PDF_COLORS.success],
     warning: [PDF_COLORS.warningBg, PDF_COLORS.warning],
@@ -195,10 +195,14 @@ export default function Historique() {
     (s.sageFemme.toLowerCase().includes(search.toLowerCase()) || s.centre.toLowerCase().includes(search.toLowerCase())) &&
     (!filterAlerte || s.alerte)
   );
-  const filteredPat = pat.filter(p =>
-    (p.centre.toLowerCase().includes(search.toLowerCase()) || p.sageFemme.toLowerCase().includes(search.toLowerCase())) &&
-    (!filterAlerte || p.alerte)
-  );
+  const filteredPat = pat.filter(p => {
+    const q = search.toLowerCase();
+    const nameMatch = (p.nomPatiente || '').toLowerCase().includes(q) ||
+      (p.prenomPatiente || '').toLowerCase().includes(q) ||
+      (p.centre || '').toLowerCase().includes(q) ||
+      (p.sageFemme || '').toLowerCase().includes(q);
+    return nameMatch && (!filterAlerte || p.alerte);
+  });
 
   // ─── Export PDF Patiente ──────────────────────────────────
   const exportPatientePDF = (id: string) => {
@@ -222,10 +226,10 @@ export default function Historique() {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
       doc.setTextColor(...PDF_COLORS.alert);
-      doc.text('ALERTERTE PRECLAMPSIE', margin + 6, y + 5);
+      doc.text('ALERTE PREECLAMPSIE', margin + 6, y + 5);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
-      doc.text(`Signes detectes: ${p.signesAlerte.join(', ')}`, margin + 6, y + 11);
+      doc.text(`Signes detectes: ${(p.signesAlerte || []).join(', ')}`, margin + 6, y + 11);
       y += 20;
     }
 
@@ -266,21 +270,61 @@ export default function Historique() {
     y = drawTwoColumns(doc, 'Connait HTA grossesse', p.entenduHtaGrossesse ? 'Oui' : 'Non', 'Sait danger HTA', p.dangerHtaMereBebe ? 'Oui' : 'Non', y);
     y = drawTwoColumns(doc, 'Connait preeclampsie', p.connaissancePreeclampsie ? 'Oui' : 'Non', 'Source info', p.sourceInfoPreeclampsie + (p.autreSource ? ` (${p.autreSource})` : ''), y);
 
-    if (p.signesAlerte.length > 0) {
+    if ((p.signesAlerte || []).length > 0) {
       y = checkPage(doc, y, 15, pageNum);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
       doc.setTextColor(...PDF_COLORS.textMuted);
       doc.text('Signes d alerte connus', margin, y);
       y += 4;
-      y = drawTags(doc, p.signesAlerte, margin, y, pageWidth - margin * 2);
+      y = drawTags(doc, p.signesAlerte || [], margin, y, pageWidth - margin * 2);
       y += 2;
     }
 
     y = checkPage(doc, y, 20, pageNum);
     y = drawTwoColumns(doc, 'SF explique signes danger', p.sfExpliqueSgnsDanger ? 'Oui' : 'Non', 'Lesquels', p.sfExpliqueSgnsDanger ? p.lesquelsSgnsDanger : 'N/A', y);
     y = drawTwoColumns(doc, 'Conseils de prevention', p.conseilsPrevention ? 'Oui' : 'Non', 'Lesquels', p.conseilsPrevention ? p.lesquelsConseils : 'N/A', y);
-    y = drawTwoColumns(doc, 'Satisfaction du suivi', p.satisfactionSuivi ? 'Oui' : 'Non', 'Suggestions', p.autreSuggestions || (p.suggestions.length > 0 ? p.suggestions.join(', ') : 'Aucune'), y);
+    y = drawTwoColumns(doc, 'Satisfaction du suivi', p.satisfactionSuivi ? 'Oui' : 'Non', 'Suggestions', p.autreSuggestions || ((p.suggestions || []).length > 0 ? (p.suggestions || []).join(', ') : 'Aucune'), y);
+    y += 4;
+
+    // Section 5: Évaluation du suivi (HTA)
+    if (p.q1RoleSf || p.q2TensionElevee) {
+      y = checkPage(doc, y, 45, pageNum);
+      y = drawSectionHeader(doc, '5. EVALUATION DU SUIVI (VOLET HTA)', y);
+      y = drawTwoColumns(doc, 'SF joue role important HTA', p.q1RoleSf, 'Deja dit tension elevee', p.q2TensionElevee, y);
+      y = drawTwoColumns(doc, 'Risque preeclampsie explique', p.q3RisqueComplication, 'Frequence mesure TA', p.q4MesureTa, y);
+      y = drawTwoColumns(doc, 'Note résultats carnet', p.q5NoteResultats, 'RDV rapproches', p.q6RdvRapproches, y);
+      y = drawTwoColumns(doc, 'Demande retour rapide', p.q7RevenirRapidement, 'Explique etat sante', p.q8ExpliqueEtat, y);
+      y = drawTwoColumns(doc, 'Bien suivie', p.q9BienSuivie, 'Temps ecoute', p.q10Ecoute, y);
+      y += 4;
+    }
+
+    // Section 6: Prise en charge
+    if (p.q11Confiance || p.q12EvalueSuivi) {
+      y = checkPage(doc, y, 45, pageNum);
+      y = drawSectionHeader(doc, '6. PRISE EN CHARGE', y);
+      y = drawTwoColumns(doc, 'Confiance', p.q11Confiance, 'Evaluation globale', p.q12EvalueSuivi, y);
+      y = drawTwoColumns(doc, 'Role SF preven. complications', p.q13RoleSfHta, 'TA chaque consultation', p.q14MesureTaChaqueConsult, y);
+      y = drawTwoColumns(doc, 'Importance bandelette expliquee', p.q15ImportanceBandelette, 'Bandelette detecte preecl.', p.q16BandeletteDetecteComplication, y);
+      y = drawTwoColumns(doc, 'Insiste bandelette cada consult', p.q17InsisteBandelette, 'Sait pourquoi bandelette', p.q18SaitPourquoiBandelette, y);
+      if (p.q19PourquoiBandelette && p.q19PourquoiBandelette.length > 0) {
+        y = drawField(doc, 'Pourquoi bandelette (raisons)', p.q19PourquoiBandelette.join(', '), margin, y);
+      }
+      y = drawTwoColumns(doc, 'Comprend explications', p.q20ComprendExplications, 'Possibilite poser questions', p.q21PoseQuestions, y);
+      y += 4;
+    }
+
+    // Section 7: Complications
+    if (p.q22TensionEleveeGrossesse || p.q23ActionSf) {
+      y = checkPage(doc, y, 45, pageNum);
+      y = drawSectionHeader(doc, '7. COMPLICATIONS', y);
+      y = drawTwoColumns(doc, 'HTA pendant cette grossesse', p.q22TensionEleveeGrossesse, 'Action de la SF', p.q23ActionSf, y);
+      y = drawTwoColumns(doc, 'Suivie regulierement', p.q24RegulierementSuivie, 'Fait examens demandes', p.q25ExamensDemandes, y);
+      if (p.q26SignesInhabituels && p.q26SignesInhabituels.length > 0) {
+        y = drawField(doc, 'Action en cas de signes inhabituels', p.q26SignesInhabituels.join(', '), margin, y);
+      }
+      y += 4;
+    }
 
     // Footer statut
     y += 6;
@@ -489,6 +533,7 @@ export default function Historique() {
                           {p.prenomPatiente} {p.nomPatiente}
                         </span>
                         <span className="text-xs text-muted-foreground">· {p.telephonePatiente}</span>
+                        {p.source === 'partage' && <Badge className="bg-violet-100 text-violet-700 border-violet-200 text-xs gap-1"><Share2 className="w-2.5 h-2.5" />Via lien</Badge>}
                         {p.alerte && <Badge variant="destructive" className="text-xs">Alerte</Badge>}
                         {p.statut === 'complet' ? <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs">Complet</Badge> : <Badge variant="outline" className="text-amber-600 border-amber-200 text-xs">Brouillon</Badge>}
                       </div>
@@ -497,7 +542,7 @@ export default function Historique() {
                         {p.atcdHtaPreeclampsie && <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">ATCD HTA</span>}
                         {p.inscriteCpn && <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">CPN</span>}
                         {p.connaissancePreeclampsie && <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">Connait preeclampsie</span>}
-                        {p.signesAlerte.length > 0 && !p.signesAlerte.includes('Je ne sais pas') && <span className="text-xs bg-secondary text-muted-foreground px-2 py-0.5 rounded-full">{p.signesAlerte.length} signe(s) d'alerte</span>}
+                        {(p.signesAlerte || []).length > 0 && !(p.signesAlerte || []).includes('Je ne sais pas') && <span className="text-xs bg-secondary text-muted-foreground px-2 py-0.5 rounded-full">{p.signesAlerte.length} signe(s) d'alerte</span>}
                       </div>
                     </div>
                     <div className="flex gap-1 shrink-0">
@@ -529,6 +574,7 @@ export default function Historique() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-sm text-foreground">{s.sageFemme || 'N/A'}</span>
+                        {s.source === 'partage' && <Badge className="bg-violet-100 text-violet-700 border-violet-200 text-xs gap-1"><Share2 className="w-2.5 h-2.5" />Via lien</Badge>}
                         {s.statut === 'complet' ? <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs"><CheckCircle className="w-3 h-3 mr-1" />Complet</Badge> : <Badge variant="outline" className="text-amber-600 border-amber-200 text-xs"><Clock className="w-3 h-3 mr-1" />Brouillon</Badge>}
                         {s.formationHta && <Badge className="bg-primary/10 text-primary border-primary/20 text-xs">Formee SONU</Badge>}
                       </div>
